@@ -1,8 +1,8 @@
 [package]
-name = "server-rag-desktop"
+name = "filewhisper-desktop"
 version = "0.1.0"
-description = "Server RAG desktop app"
-authors = ["Server RAG"]
+description = "FileWhisper desktop app"
+authors = ["FileWhisper"]
 edition = "2021"
 
 [build-dependencies]

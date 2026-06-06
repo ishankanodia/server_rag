@@ -21,7 +21,7 @@ Build on macOS:
 source .venv/bin/activate
 pip install -r requirements-dev.txt
 npm install
-pyinstaller server-rag-backend.spec
+pyinstaller filewhisper-backend.spec
 npm run desktop:build
 ```
 
@@ -41,7 +41,7 @@ python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements-dev.txt
 npm install
-pyinstaller server-rag-backend.spec
+pyinstaller filewhisper-backend.spec
 npm run desktop:build
 ```
 

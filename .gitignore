@@ -15,7 +15,7 @@ rag_data/
 
 # Build output
 build/
-dist/
+dist/*
 !dist/.gitkeep
-!dist/server-rag-backend
+!dist/filewhisper-backend
 src-tauri/target/

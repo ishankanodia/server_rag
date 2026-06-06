@@ -1,4 +1,4 @@
-# Server RAG
+# FileWhisper
 
 Desktop-ready local RAG for asking questions over files on your computer.
 
@@ -107,7 +107,7 @@ npm install
 Build the Python backend executable:
 
 ```bash
-pyinstaller server-rag-backend.spec
+pyinstaller filewhisper-backend.spec
 ```
 
 Build the desktop app:
@@ -140,8 +140,8 @@ To create downloadable artifacts:
 
 Expected artifact names:
 
-- `server-rag-macos`
-- `server-rag-windows`
+- `filewhisper-macos`
+- `filewhisper-windows`
 
 For public distribution, create a GitHub Release and upload the generated `.dmg` and `.exe`.
 
@@ -197,7 +197,7 @@ server_launcher.py         Local backend launcher
 static/index.html          Main UI
 src-tauri/                 Tauri desktop shell
 .github/workflows/         GitHub Actions desktop builds
-server-rag-backend.spec    PyInstaller backend build config
+filewhisper-backend.spec    PyInstaller backend build config
 ```
 
 ## Security Notes

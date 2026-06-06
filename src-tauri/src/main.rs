@@ -11,9 +11,9 @@ struct ServerProcess(Mutex<Option<Child>>);
 
 fn server_command(app: &AppHandle, port: u16) -> Command {
     let exe_name = if cfg!(target_os = "windows") {
-        "server-rag-backend.exe"
+        "filewhisper-backend.exe"
     } else {
-        "server-rag-backend"
+        "filewhisper-backend"
     };
     let exe_path = app
         .path()
@@ -21,7 +21,7 @@ fn server_command(app: &AppHandle, port: u16) -> Command {
         .expect("backend resource path");
     let mut command = Command::new(exe_path);
 
-    command.env("SERVER_RAG_PORT", port.to_string());
+    command.env("FILEWHISPER_PORT", port.to_string());
     command.env("RAG_DATA_DIR", app_data_dir());
     command.stdout(Stdio::null());
     command.stderr(Stdio::null());
@@ -29,13 +29,13 @@ fn server_command(app: &AppHandle, port: u16) -> Command {
 }
 
 fn app_data_dir() -> String {
-    if let Ok(dir) = env::var("SERVER_RAG_DATA_DIR") {
+    if let Ok(dir) = env::var("FILEWHISPER_DATA_DIR") {
         return dir;
     }
     let base = env::var("HOME")
         .or_else(|_| env::var("USERPROFILE"))
         .unwrap_or_else(|_| ".".to_string());
-    format!("{base}/.server-rag/rag_data")
+    format!("{base}/.filewhisper/rag_data")
 }
 
 fn main() {
@@ -59,7 +59,7 @@ fn main() {
                 .parse()
                 .expect("valid server URL");
             WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
-                .title("Server RAG")
+                .title("FileWhisper")
                 .inner_size(1100.0, 780.0)
                 .min_inner_size(900.0, 640.0)
                 .build()?;

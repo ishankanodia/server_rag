@@ -33,7 +33,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="server-rag-backend",
+    name="filewhisper-backend",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

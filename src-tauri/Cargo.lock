@@ -764,6 +764,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "filewhisper-desktop"
+version = "0.1.0"
+dependencies = [
+ "portpicker",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-shell",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2814,16 +2824,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
-]
-
-[[package]]
-name = "server-rag-desktop"
-version = "0.1.0"
-dependencies = [
- "portpicker",
- "tauri",
- "tauri-build",
- "tauri-plugin-shell",
 ]
 
 [[package]]

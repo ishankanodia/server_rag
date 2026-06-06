@@ -98,10 +98,10 @@ llm_config = {
 
 
 def _config_path() -> Path:
-    configured = os.getenv("SERVER_RAG_CONFIG")
+    configured = os.getenv("FILEWHISPER_CONFIG")
     if configured:
         return Path(configured).expanduser()
-    return Path.home() / ".server-rag" / "config.json"
+    return Path.home() / ".filewhisper" / "config.json"
 
 
 def _load_saved_llm_config():
