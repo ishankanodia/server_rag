@@ -1,0 +1,14 @@
+.git
+.DS_Store
+__pycache__/
+*.py[cod]
+.env
+.venv/
+venv/
+rag_data/
+.cache/
+*.log
+build/
+dist/
+src-tauri/target/
+node_modules/

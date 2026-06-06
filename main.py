@@ -5,16 +5,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from rag import ingest_path, retrieve, get_indexed_sources, clear_index
 
+import json
 import re
 import os
+import urllib.error
+import urllib.request
+from pathlib import Path
 from dotenv import load_dotenv
-from groq import Groq
 from langgraph.graph import StateGraph
 
 load_dotenv()
-
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "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")
-client = Groq(api_key=GROQ_API_KEY)
 
 app = FastAPI()
 
@@ -39,9 +39,133 @@ class Query(BaseModel):
     question: str
 
 
+class LLMConfigRequest(BaseModel):
+    provider: str
+    model: str
+    api_key: str | None = None
+    base_url: str | None = None
+
+
 # =========================
 # Utils
 # =========================
+PROVIDER_DEFAULTS = {
+    "groq": {
+        "model": "llama-3.3-70b-versatile",
+        "base_url": "https://api.groq.com/openai/v1",
+        "api_key_env": "GROQ_API_KEY",
+        "api_style": "openai",
+    },
+    "openai": {
+        "model": "gpt-5-mini",
+        "base_url": "https://api.openai.com/v1",
+        "api_key_env": "OPENAI_API_KEY",
+        "api_style": "openai",
+    },
+    "anthropic": {
+        "model": "claude-sonnet-4-6",
+        "base_url": "https://api.anthropic.com/v1",
+        "api_key_env": "ANTHROPIC_API_KEY",
+        "api_style": "anthropic",
+    },
+    "gemini": {
+        "model": "gemini-2.5-flash",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta",
+        "api_key_env": "GEMINI_API_KEY",
+        "api_style": "gemini",
+    },
+    "custom": {
+        "model": "llama-3.1-8b-instant",
+        "base_url": "",
+        "api_key_env": "LLM_API_KEY",
+        "api_style": "openai",
+    },
+}
+
+
+llm_config = {
+    "provider": os.getenv("LLM_PROVIDER", "groq").lower(),
+    "model": os.getenv("LLM_MODEL", ""),
+    "base_url": os.getenv("LLM_BASE_URL", ""),
+    "api_keys": {
+        "groq": os.getenv("GROQ_API_KEY", ""),
+        "openai": os.getenv("OPENAI_API_KEY", ""),
+        "anthropic": os.getenv("ANTHROPIC_API_KEY", ""),
+        "gemini": os.getenv("GEMINI_API_KEY", ""),
+        "custom": os.getenv("LLM_API_KEY", ""),
+    },
+}
+
+
+def _config_path() -> Path:
+    configured = os.getenv("SERVER_RAG_CONFIG")
+    if configured:
+        return Path(configured).expanduser()
+    return Path.home() / ".server-rag" / "config.json"
+
+
+def _load_saved_llm_config():
+    path = _config_path()
+    if not path.exists():
+        return
+    try:
+        saved = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return
+
+    provider = _normalize_provider(saved.get("provider", llm_config["provider"]))
+    llm_config["provider"] = provider
+    llm_config["model"] = saved.get("model") or llm_config["model"]
+    llm_config["base_url"] = saved.get("base_url") or llm_config["base_url"]
+    for name, key in saved.get("api_keys", {}).items():
+        if name in llm_config["api_keys"] and key:
+            llm_config["api_keys"][name] = key
+
+
+def _save_llm_config():
+    path = _config_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "provider": llm_config["provider"],
+        "model": llm_config["model"],
+        "base_url": llm_config["base_url"],
+        "api_keys": {name: key for name, key in llm_config["api_keys"].items() if key},
+    }
+    path.write_text(json.dumps(payload, indent=2))
+
+
+def _normalize_provider(provider: str) -> str:
+    provider = (provider or "groq").strip().lower()
+    return provider if provider in PROVIDER_DEFAULTS else "custom"
+
+
+_load_saved_llm_config()
+
+
+def _effective_llm_config() -> dict:
+    provider = _normalize_provider(llm_config.get("provider", "groq"))
+    defaults = PROVIDER_DEFAULTS[provider]
+    api_key = llm_config["api_keys"].get(provider) or os.getenv(defaults["api_key_env"], "")
+
+    return {
+        "provider": provider,
+        "model": llm_config.get("model") or defaults["model"],
+        "api_key": api_key,
+        "base_url": (llm_config.get("base_url") or defaults["base_url"]).rstrip("/"),
+        "api_style": defaults["api_style"],
+    }
+
+
+def public_llm_config() -> dict:
+    cfg = _effective_llm_config()
+    return {
+        "provider": cfg["provider"],
+        "model": cfg["model"],
+        "base_url": cfg["base_url"],
+        "has_api_key": bool(cfg["api_key"]),
+    }
+
+
 def clean_text(text: str) -> str:
     text = re.sub(r'\[[^\]]*\]', '', text)
     text = text.encode("ascii", "ignore").decode()
@@ -49,17 +173,100 @@ def clean_text(text: str) -> str:
     return text.strip()
 
 
-def call_llm(prompt: str, max_tokens=400):
-    response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
-        messages=[
-            {"role": "system", "content": "Answer ONLY using provided context. Be structured and clear."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.5,
-        max_tokens=max_tokens
+def _post_json(url: str, payload: dict, headers: dict, timeout: int = 60) -> dict:
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={**headers, "Content-Type": "application/json"},
+        method="POST",
     )
-    return response.choices[0].message.content.strip()
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", errors="ignore")
+        raise RuntimeError(f"LLM request failed ({e.code}): {detail[:300]}")
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"LLM request failed: {e.reason}")
+
+
+def _call_openai_compatible(cfg: dict, prompt: str, max_tokens: int) -> str:
+    data = _post_json(
+        f"{cfg['base_url']}/chat/completions",
+        {
+            "model": cfg["model"],
+            "messages": [
+                {"role": "system", "content": "Answer ONLY using provided context. Be structured and clear."},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.5,
+            "max_tokens": max_tokens,
+        },
+        {"Authorization": f"Bearer {cfg['api_key']}"},
+    )
+    return data["choices"][0]["message"]["content"].strip()
+
+
+def _call_anthropic(cfg: dict, prompt: str, max_tokens: int) -> str:
+    data = _post_json(
+        f"{cfg['base_url']}/messages",
+        {
+            "model": cfg["model"],
+            "system": "Answer ONLY using provided context. Be structured and clear.",
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": max_tokens,
+            "temperature": 0.5,
+        },
+        {
+            "x-api-key": cfg["api_key"],
+            "anthropic-version": "2023-06-01",
+        },
+    )
+    return "".join(part.get("text", "") for part in data.get("content", []) if part.get("type") == "text").strip()
+
+
+def _call_gemini(cfg: dict, prompt: str, max_tokens: int) -> str:
+    model = cfg["model"].removeprefix("models/")
+    data = _post_json(
+        f"{cfg['base_url']}/models/{model}:generateContent?key={cfg['api_key']}",
+        {
+            "systemInstruction": {
+                "parts": [{"text": "Answer ONLY using provided context. Be structured and clear."}]
+            },
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": prompt}],
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0.5,
+                "maxOutputTokens": max_tokens,
+            },
+        },
+        {},
+    )
+    candidates = data.get("candidates", [])
+    if not candidates:
+        raise RuntimeError("LLM request returned no candidates.")
+    parts = candidates[0].get("content", {}).get("parts", [])
+    return "".join(part.get("text", "") for part in parts).strip()
+
+
+def call_llm(prompt: str, max_tokens=400):
+    cfg = _effective_llm_config()
+    if not cfg["api_key"]:
+        raise RuntimeError(
+            "No LLM API key configured. Set the provider key in .env or deployment secrets."
+        )
+    if not cfg["base_url"]:
+        raise RuntimeError("No LLM base URL configured for the selected provider.")
+
+    if cfg["api_style"] == "anthropic":
+        return _call_anthropic(cfg, prompt, max_tokens)
+    if cfg["api_style"] == "gemini":
+        return _call_gemini(cfg, prompt, max_tokens)
+    return _call_openai_compatible(cfg, prompt, max_tokens)
 
 
 # =========================
@@ -167,6 +374,11 @@ def serve_ui():
     return FileResponse("static/index.html")
 
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
 @app.get("/browse")
 def browse(path: str = "/Users"):
     """Return contents of a directory for the folder picker UI."""
@@ -221,6 +433,28 @@ def sources():
 def clear():
     clear_index()
     return {"status": "cleared"}
+
+
+@app.get("/llm-config")
+def get_llm_config():
+    return public_llm_config()
+
+
+@app.post("/llm-config")
+def set_llm_config(req: LLMConfigRequest):
+    provider = _normalize_provider(req.provider)
+    if not req.model.strip():
+        raise HTTPException(status_code=400, detail="Model is required")
+    if provider == "custom" and not (req.base_url or "").strip():
+        raise HTTPException(status_code=400, detail="Base URL is required for custom providers")
+
+    llm_config["provider"] = provider
+    llm_config["model"] = req.model.strip()
+    llm_config["base_url"] = (req.base_url or "").strip()
+    if req.api_key is not None and req.api_key.strip():
+        llm_config["api_keys"][provider] = req.api_key.strip()
+    _save_llm_config()
+    return public_llm_config()
 
 
 @app.post("/ask")

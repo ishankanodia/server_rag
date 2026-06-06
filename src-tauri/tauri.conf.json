@@ -1,0 +1,28 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Server RAG",
+  "version": "0.1.0",
+  "identifier": "com.serverrag.app",
+  "build": {
+    "beforeDevCommand": "SERVER_RAG_PORT=8001 python3 server_launcher.py",
+    "beforeBuildCommand": "",
+    "frontendDist": "../static",
+    "devUrl": "http://127.0.0.1:8001"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "resources": [
+      "../dist/server-rag-backend*"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    }
+  }
+}

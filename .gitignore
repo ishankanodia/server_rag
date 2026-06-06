@@ -1,0 +1,21 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+.env
+.venv/
+venv/
+node_modules/
+
+# Local indexes may contain private document text and file paths.
+rag_data/
+
+# Runtime/cache output
+.cache/
+*.log
+
+# Build output
+build/
+dist/
+!dist/.gitkeep
+!dist/server-rag-backend
+src-tauri/target/

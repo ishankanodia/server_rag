@@ -187,6 +187,62 @@
     .btn-red { background: rgba(255,107,107,0.07); border: 1px solid rgba(255,107,107,0.2); color: var(--accent2); margin-top: 10px; }
     .btn-red:hover { background: rgba(255,107,107,0.14); transform: translateY(-1px); }
 
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+    @media (max-width: 640px) { .settings-grid { grid-template-columns: 1fr; } }
+
+    .settings-grid label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .field {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      padding: 10px 12px;
+      outline: none;
+    }
+
+    .field:focus { border-color: var(--accent); }
+
+    .field-note {
+      grid-column: 2;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-top: -4px;
+    }
+    @media (max-width: 640px) { .field-note { grid-column: 1; } }
+
+    .settings-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    @media (max-width: 640px) { .settings-actions { grid-template-columns: 1fr; } }
+
+    .settings-status {
+      margin-top: 10px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      min-height: 18px;
+    }
+
     /* INGEST LOG */
     .ingest-log { margin-top: 10px; max-height: 90px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
     .log-line { font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 3px 8px; border-radius: 4px; }
@@ -300,6 +356,39 @@
 
   </div>
 
+  <div class="panel ask-panel">
+    <div class="panel-title">LLM Settings</div>
+    <div class="settings-grid">
+      <label for="llmProvider">Provider</label>
+      <select class="field" id="llmProvider">
+        <option value="groq">Groq</option>
+        <option value="openai">OpenAI</option>
+        <option value="anthropic">Anthropic Claude</option>
+        <option value="gemini">Google Gemini</option>
+        <option value="custom">Custom OpenAI-compatible</option>
+      </select>
+
+      <label for="llmModel">Model</label>
+      <input class="field" id="llmModel" list="llmModelList" placeholder="llama-3.3-70b-versatile" />
+      <datalist id="llmModelList"></datalist>
+
+      <label for="llmBaseUrl">Base URL</label>
+      <input class="field" id="llmBaseUrl" placeholder="https://api.groq.com/openai/v1" />
+
+      <label>Key Status</label>
+      <div class="field-note" id="llmKeyNote">No key configured yet.</div>
+
+      <label for="llmApiKey">API Key</label>
+      <input class="field" id="llmApiKey" type="password" placeholder="Paste your provider API key" />
+      <div class="field-note">Saved on this computer for future app launches.</div>
+    </div>
+    <div class="settings-actions">
+      <button class="btn btn-cyan" id="saveLlmBtn">Save LLM Settings</button>
+      <button class="btn btn-green" id="reloadLlmBtn">Reload Settings</button>
+    </div>
+    <div class="settings-status" id="llmStatus"></div>
+  </div>
+
   <!-- Ask -->
   <div class="panel ask-panel">
     <div class="panel-title">Ask Your Knowledge Base</div>
@@ -321,6 +410,57 @@
 <script>
   const BASE = window.location.origin;
   const EXT_ICONS = { ".pdf":"📕",".txt":"📄",".md":"📝",".png":"🖼️",".jpg":"🖼️",".jpeg":"🖼️",".webp":"🖼️",".bmp":"🖼️",".tiff":"🖼️" };
+  const PROVIDER_DEFAULTS = {
+    groq: {
+      model: "llama-3.3-70b-versatile",
+      baseUrl: "https://api.groq.com/openai/v1",
+      models: [
+        "llama-3.3-70b-versatile",
+        "meta-llama/llama-4-scout-17b-16e-instruct",
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+        "qwen/qwen3-32b",
+        "llama-3.1-8b-instant"
+      ]
+    },
+    openai: {
+      model: "gpt-5-mini",
+      baseUrl: "https://api.openai.com/v1",
+      models: [
+        "gpt-5.2",
+        "gpt-5.2-pro",
+        "gpt-5.1",
+        "gpt-5-mini",
+        "gpt-5-nano",
+        "gpt-4.1",
+        "gpt-4.1-mini",
+        "gpt-4o-mini"
+      ]
+    },
+    anthropic: {
+      model: "claude-sonnet-4-6",
+      baseUrl: "https://api.anthropic.com/v1",
+      models: [
+        "claude-opus-4-8",
+        "claude-sonnet-4-6",
+        "claude-haiku-4-5-20251001",
+        "claude-opus-4-7",
+        "claude-opus-4-6"
+      ]
+    },
+    gemini: {
+      model: "gemini-2.5-flash",
+      baseUrl: "https://generativelanguage.googleapis.com/v1beta",
+      models: [
+        "gemini-2.5-flash",
+        "gemini-2.5-pro",
+        "gemini-2.5-flash-lite",
+        "gemini-3.5-flash",
+        "gemini-flash-latest"
+      ]
+    },
+    custom: { model: "", baseUrl: "" }
+  };
 
   let selectedPath = null;
 
@@ -465,6 +605,79 @@
     loadSources();
   };
 
+  function applyProviderDefaults() {
+    const provider = document.getElementById("llmProvider").value;
+    const defaults = PROVIDER_DEFAULTS[provider];
+    const model = document.getElementById("llmModel");
+    const baseUrl = document.getElementById("llmBaseUrl");
+    const modelList = document.getElementById("llmModelList");
+    modelList.innerHTML = (defaults.models || []).map(name => `<option value="${name}"></option>`).join("");
+    if (!model.value.trim()) model.value = defaults.model;
+    if (provider !== "custom") baseUrl.value = defaults.baseUrl;
+    baseUrl.disabled = provider !== "custom";
+  }
+
+  async function loadLlmConfig() {
+    const status = document.getElementById("llmStatus");
+    status.innerText = "Loading settings...";
+    try {
+      const res = await fetch(`${BASE}/llm-config`);
+      const data = await res.json();
+      document.getElementById("llmProvider").value = data.provider || "groq";
+      document.getElementById("llmModel").value = data.model || "";
+      document.getElementById("llmBaseUrl").value = data.base_url || "";
+      document.getElementById("llmApiKey").value = "";
+      document.getElementById("llmKeyNote").innerText = data.has_api_key
+        ? "Key configured on this computer."
+        : "No key configured. Paste a provider key below.";
+      applyProviderDefaults();
+      status.innerText = `Active: ${data.provider} / ${data.model}${data.has_api_key ? " / key set" : " / no key"}`;
+    } catch(e) {
+      status.innerText = "Could not load LLM settings.";
+    }
+  }
+
+  document.getElementById("llmProvider").onchange = () => {
+    document.getElementById("llmModel").value = "";
+    document.getElementById("llmBaseUrl").value = "";
+    applyProviderDefaults();
+  };
+
+  document.getElementById("reloadLlmBtn").onclick = loadLlmConfig;
+
+  document.getElementById("saveLlmBtn").onclick = async () => {
+    const btn = document.getElementById("saveLlmBtn");
+    const status = document.getElementById("llmStatus");
+    btn.disabled = true;
+    status.innerText = "Saving settings...";
+
+    try {
+      const res = await fetch(`${BASE}/llm-config`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          provider: document.getElementById("llmProvider").value,
+          model: document.getElementById("llmModel").value,
+          base_url: document.getElementById("llmBaseUrl").value,
+          api_key: document.getElementById("llmApiKey").value || null
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        status.innerText = data.detail || "Could not save settings.";
+      } else {
+        document.getElementById("llmApiKey").value = "";
+        document.getElementById("llmKeyNote").innerText = data.has_api_key
+          ? "Key configured on this computer."
+          : "No key configured. Paste a provider key above.";
+        status.innerText = `Saved: ${data.provider} / ${data.model}${data.has_api_key ? " / key set" : " / no key"}`;
+      }
+    } catch(e) {
+      status.innerText = "Could not reach backend.";
+    }
+    btn.disabled = false;
+  };
+
   // Ask
   function typeText(el, text, speed=10) {
     el.innerText = ""; let i = 0;
@@ -532,6 +745,7 @@
 
   browse("/Users");
   loadSources();
+  loadLlmConfig();
 </script>
 </body>
 </html>

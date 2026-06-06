@@ -15,7 +15,7 @@ import pytesseract
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
 # Persistence paths
-DATA_DIR = "rag_data"
+DATA_DIR = os.getenv("RAG_DATA_DIR", "rag_data")
 INDEX_PATH = os.path.join(DATA_DIR, "index.faiss")
 DOCS_PATH = os.path.join(DATA_DIR, "documents.pkl")
 SOURCES_PATH = os.path.join(DATA_DIR, "sources.json")

@@ -1,0 +1,18 @@
+[package]
+name = "server-rag-desktop"
+version = "0.1.0"
+description = "Server RAG desktop app"
+authors = ["Server RAG"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+portpicker = "0.1"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
