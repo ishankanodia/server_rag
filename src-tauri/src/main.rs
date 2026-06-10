@@ -11,9 +11,9 @@ struct ServerProcess(Mutex<Option<Child>>);
 
 fn server_command(app: &AppHandle, port: u16) -> Command {
     let exe_name = if cfg!(target_os = "windows") {
-        "filewhisper-backend.exe"
+        "_up_/dist/filewhisper-backend.exe"
     } else {
-        "filewhisper-backend"
+        "_up_/dist/filewhisper-backend"
     };
     let exe_path = app
         .path()
