@@ -306,41 +306,75 @@
       border-bottom-right-radius: var(--radius-lg);
     }
 
-    /* How it works */
+    /* Connected Steps Flow */
     .how-it-works {
-      margin-bottom: 70px;
-    }
-    .how-it-works h2 {
-      font-size: 22px;
-      font-weight: 600;
-      margin-bottom: 32px;
-      letter-spacing: -0.5px;
+      margin-bottom: 80px;
       text-align: center;
     }
-    .steps-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
+    .how-it-works h2 {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 40px;
+      letter-spacing: -0.8px;
     }
-    .step-card {
-      background: #09090b;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 24px;
+    .steps-flow {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
       position: relative;
-      transition: border-color 0.2s;
+      gap: 24px;
+      max-width: 800px;
+      margin: 0 auto;
     }
-    .step-card:hover {
-      border-color: var(--border-hover);
-    }
-    .step-num {
-      font-family: var(--font-mono);
-      font-size: 32px;
-      font-weight: 700;
-      color: rgba(255, 255, 255, 0.04);
+    .steps-flow::before {
+      content: '';
       position: absolute;
-      top: 16px;
-      right: 20px;
+      top: 35px;
+      left: 50px;
+      right: 50px;
+      height: 2px;
+      background: linear-gradient(90deg, #00f0ff 0%, #7000ff 50%, rgba(255, 255, 255, 0.05) 100%);
+      z-index: 0;
+    }
+    .step-item {
+      flex: 1;
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .step-badge {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      background: #09090b;
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 20px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+      transition: all 0.3s ease;
+    }
+    .step-item:nth-child(1) .step-badge {
+      border-color: #00f0ff;
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.15);
+      color: #00f0ff;
+    }
+    .step-item:nth-child(2) .step-badge {
+      border-color: #7000ff;
+      box-shadow: 0 0 20px rgba(112, 0, 255, 0.15);
+      color: #7000ff;
+    }
+    .step-item:nth-child(3) .step-badge {
+      border-color: var(--border);
+    }
+    .step-item:hover .step-badge {
+      transform: scale(1.1);
     }
     .step-title {
       font-size: 15px;
@@ -349,9 +383,29 @@
       color: var(--text);
     }
     .step-desc {
-      font-size: 13px;
+      font-size: 12.5px;
       color: var(--text-muted);
-      line-height: 1.5;
+      line-height: 1.6;
+      max-width: 220px;
+    }
+    .voila-callout {
+      margin-top: 48px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(90deg, rgba(0, 240, 255, 0.04) 0%, rgba(112, 0, 255, 0.04) 100%);
+      border: 1px solid rgba(0, 240, 255, 0.12);
+      border-radius: 100px;
+      padding: 10px 24px;
+      font-weight: 500;
+      font-size: 13.5px;
+      color: #00f0ff;
+      box-shadow: 0 4px 20px rgba(0, 240, 255, 0.02);
+      animation: pulseGlow 2s infinite alternate;
+    }
+    @keyframes pulseGlow {
+      0% { border-color: rgba(0, 240, 255, 0.12); box-shadow: 0 0 10px rgba(0, 240, 255, 0.02); }
+      100% { border-color: rgba(0, 240, 255, 0.3); box-shadow: 0 0 20px rgba(0, 240, 255, 0.06); }
     }
 
     /* Download Portal */
@@ -583,7 +637,17 @@
     @media (max-width: 768px) {
       h1 { font-size: 32px; }
       .download-grid { grid-template-columns: 1fr; }
-      .steps-grid { grid-template-columns: 1fr; }
+      .steps-flow {
+        flex-direction: column;
+        align-items: center;
+        gap: 32px;
+      }
+      .steps-flow::before {
+        display: none;
+      }
+      .step-desc {
+        max-width: 100%;
+      }
       .screenshot-container { margin-bottom: 40px; }
       .features-grid { grid-template-columns: 1fr; }
       .hero-actions { flex-direction: column; gap: 12px; }
@@ -634,22 +698,25 @@
     <!-- How It Works Section -->
     <section class="how-it-works">
       <h2>Getting started is simple</h2>
-      <div class="steps-grid">
-        <div class="step-card">
-          <div class="step-num">01</div>
+      <div class="steps-flow">
+        <div class="step-item">
+          <div class="step-badge">1</div>
           <div class="step-title">Download & Run</div>
-          <p class="step-desc">Download the installer matching your computer (Mac or Windows) and launch the app instantly—no databases to install.</p>
+          <p class="step-desc">Grab the installer matching your system and open it. No databases or setups required.</p>
         </div>
-        <div class="step-card">
-          <div class="step-num">02</div>
+        <div class="step-item">
+          <div class="step-badge">2</div>
           <div class="step-title">Add your API Key</div>
-          <p class="step-desc">Enter your API key for your favorite AI provider (like Groq, OpenAI, Anthropic Claude, or Google Gemini) inside settings.</p>
+          <p class="step-desc">Paste your Groq, OpenAI, Claude, or Gemini key inside the LLM settings panel.</p>
         </div>
-        <div class="step-card">
-          <div class="step-num">03</div>
+        <div class="step-item">
+          <div class="step-badge">3</div>
           <div class="step-title">Select folder & chat</div>
-          <p class="step-desc">Select any folder on your computer to scan your documents. Ask questions in plain English and get answers with citations offline.</p>
+          <p class="step-desc">Select any local folder to index your documents and start asking questions offline.</p>
         </div>
+      </div>
+      <div class="voila-callout">
+        <span>Voila! Just like that, you are ready to chat. 🚀</span>
       </div>
     </section>
 
