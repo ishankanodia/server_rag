@@ -10,6 +10,8 @@ datas += collect_data_files("sentence_transformers")
 
 hiddenimports = collect_submodules("sentence_transformers")
 hiddenimports += collect_submodules("transformers")
+hiddenimports += collect_submodules("langgraph")
+hiddenimports += collect_submodules("langchain_core")
 
 
 a = Analysis(

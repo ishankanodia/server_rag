@@ -11,6 +11,7 @@ import os
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import TypedDict
 from dotenv import load_dotenv
 from langgraph.graph import StateGraph
 
@@ -167,7 +168,8 @@ def public_llm_config() -> dict:
 
 
 def clean_text(text: str) -> str:
-    text = re.sub(r'\[[^\]]*\]', '', text)
+    # Strip Markdown link syntax [text](url) -> text, but keep plain [brackets]
+    text = re.sub(r'\[([^\]]*)\]\([^)]*\)', r'\1', text)
     text = text.encode("ascii", "ignore").decode()
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
@@ -272,7 +274,7 @@ def call_llm(prompt: str, max_tokens=400):
 # =========================
 # LangGraph
 # =========================
-class GraphState(dict):
+class GraphState(TypedDict, total=False):
     question: str
     context: str
     answer: str
@@ -380,8 +382,10 @@ def health():
 
 
 @app.get("/browse")
-def browse(path: str = "/Users"):
+def browse(path: str = ""):
     """Return contents of a directory for the folder picker UI."""
+    if not path:
+        path = str(Path.home())
     path = os.path.abspath(path)
     if not os.path.exists(path) or not os.path.isdir(path):
         raise HTTPException(status_code=400, detail="Invalid directory")

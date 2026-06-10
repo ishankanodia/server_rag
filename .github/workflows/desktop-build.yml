@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
+          - os: macos-13
             bundle: dmg
             artifact: filewhisper-macos
             artifact_path: src-tauri/target/release/bundle/dmg/*.dmg
@@ -60,10 +60,18 @@ jobs:
         run: npm ci
 
       - name: Build backend executable
-        run: pyinstaller filewhisper-backend.spec
+        run: pyinstaller --noconfirm filewhisper-backend.spec
 
       - name: Build desktop app
         run: npm run desktop:build -- --bundles ${{ matrix.bundle }}
+
+      - name: Strip macOS quarantine flag
+        if: startsWith(matrix.os, 'macos-')
+        run: |
+          # Remove extended attributes that cause "damaged app" errors
+          find src-tauri/target/release/bundle/dmg -name '*.dmg' -exec xattr -cr {} \;
+          # Also strip from the .app inside the build if accessible
+          find src-tauri/target/release/bundle -name '*.app' -exec xattr -cr {} \; 2>/dev/null || true
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

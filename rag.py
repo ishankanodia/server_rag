@@ -12,7 +12,24 @@ import fitz  # PyMuPDF
 from PIL import Image
 import pytesseract
 
-model = SentenceTransformer('all-MiniLM-L6-v2')
+import logging
+
+logger = logging.getLogger(__name__)
+
+_model = None
+
+
+def _get_model():
+    global _model
+    if _model is None:
+        try:
+            _model = SentenceTransformer('all-MiniLM-L6-v2')
+        except Exception as e:
+            logger.error("Failed to load embedding model: %s", e)
+            raise RuntimeError(
+                "Could not load the embedding model. Check your internet connection for first-time download."
+            ) from e
+    return _model
 
 # Persistence paths
 DATA_DIR = os.getenv("RAG_DATA_DIR", "rag_data")
@@ -104,7 +121,7 @@ def add_chunks(chunks: list, source_path: str):
     if not chunks:
         return 0
 
-    embeddings = model.encode(chunks)
+    embeddings = _get_model().encode(chunks)
     dimension = embeddings.shape[1]
 
     if index is None:
@@ -139,6 +156,9 @@ def ingest_path(path: str) -> dict:
         return {"error": "Invalid path"}
 
     for filepath in files:
+        if filepath in sources:
+            results.append({"file": filepath, "status": "skipped", "chunks": 0, "reason": "already indexed"})
+            continue
         text = extract_text_from_file(filepath)
         if not text.strip():
             results.append({"file": filepath, "status": "skipped", "chunks": 0})
@@ -161,7 +181,7 @@ def retrieve(query: str, k: int = 5) -> list:
     if index is None or len(documents) == 0:
         return []
 
-    query_embedding = model.encode([query])
+    query_embedding = _get_model().encode([query])
     distances, indices = index.search(np.array(query_embedding), k)
     return [
         (documents[i], doc_sources[i])

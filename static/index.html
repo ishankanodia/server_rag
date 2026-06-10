@@ -319,6 +319,95 @@
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .panel-title-btn {
+      background: none;
+      border: none;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 0;
+      text-align: left;
+    }
+    .panel-title-btn::before {
+      content: '';
+      width: 6px; height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent);
+    }
+    .panel-title-btn .chevron {
+      margin-left: auto;
+      font-size: 14px;
+      transition: transform 0.2s;
+      color: var(--muted);
+    }
+    .panel-title-btn .chevron.open { transform: rotate(90deg); }
+    .collapsible-content {
+      overflow: hidden;
+      transition: max-height 0.3s ease, opacity 0.3s ease;
+      max-height: 0;
+      opacity: 0;
+    }
+    .collapsible-content.open {
+      max-height: 600px;
+      opacity: 1;
+    }
+
+    /* Drag and drop zone */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      transition: all 0.2s;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+    .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(0,229,255,0.05);
+      color: var(--accent);
+    }
+
+    /* Inline confirm */
+    .confirm-inline {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .confirm-inline .btn { flex: 1; }
+    .confirm-msg {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--accent2);
+      margin-top: 8px;
+    }
+
+    .get-started {
+      text-align: center;
+      padding: 24px 16px;
+    }
+    .get-started .gs-icon { font-size: 28px; margin-bottom: 8px; }
+    .get-started .gs-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .get-started .gs-desc {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
   </style>
 </head>
 <body>
@@ -328,7 +417,7 @@
     <div class="logo-box"><img src="/static/logo.png" alt="FileWhisper logo" /></div>
     <div>
       <h1>File<span>Whisper</span></h1>
-      <div class="tagline">// ask your files · localhost:8001</div>
+      <div class="tagline">// ask your files</div>
     </div>
   </header>
 
@@ -352,13 +441,25 @@
       <div class="sources-list" id="sourcesList">
         <div class="empty-state">No sources indexed yet.</div>
       </div>
-      <button class="btn btn-red" id="clearBtn">🗑 Clear All</button>
+      <div id="clearWrap">
+        <button class="btn btn-red" id="clearBtn">🗑 Clear All</button>
+        <div class="confirm-inline" id="clearConfirm" style="display:none;">
+          <div class="confirm-msg">Clear all indexed sources?</div>
+        </div>
+        <div class="confirm-inline" id="clearActions" style="display:none;">
+          <button class="btn btn-red" id="clearYes">Yes, Clear</button>
+          <button class="btn btn-cyan" id="clearNo">Cancel</button>
+        </div>
+      </div>
     </div>
 
   </div>
 
   <div class="panel ask-panel">
-    <div class="panel-title">LLM Settings</div>
+    <button class="panel-title panel-title-btn" id="llmToggle" type="button">
+      LLM Settings <span class="chevron" id="llmChevron">›</span>
+    </button>
+    <div class="collapsible-content" id="llmContent">
     <div class="settings-grid">
       <label for="llmProvider">Provider</label>
       <select class="field" id="llmProvider">
@@ -388,11 +489,17 @@
       <button class="btn btn-green" id="reloadLlmBtn">Reload Settings</button>
     </div>
     <div class="settings-status" id="llmStatus"></div>
+    </div>
   </div>
 
   <!-- Ask -->
   <div class="panel ask-panel">
     <div class="panel-title">Ask Your Knowledge Base</div>
+    <div class="get-started" id="getStarted">
+      <div class="gs-icon">📂</div>
+      <div class="gs-title">Get Started</div>
+      <div class="gs-desc">Browse and index some files on the left,<br/>then come back here to ask questions.</div>
+    </div>
     <textarea id="question" placeholder="Ask anything about your indexed files… (Enter to submit)"></textarea>
     <button class="btn btn-green" id="askBtn">↩ Ask</button>
     <div class="response-wrap" id="responseWrap">
@@ -406,10 +513,14 @@
 
 </div>
 
-<div class="status-strip">FileWhisper · <span id="sourceCount">0</span> sources indexed · running on localhost:8001</div>
+<div class="status-strip">FileWhisper · <span id="sourceCount">0</span> sources indexed · running on <span id="hostDisplay">localhost</span></div>
 
 <script>
   const BASE = window.location.origin;
+  document.addEventListener('DOMContentLoaded', () => {
+    const hostEl = document.getElementById('hostDisplay');
+    if (hostEl) hostEl.innerText = window.location.host;
+  });
   const EXT_ICONS = { ".pdf":"📕",".txt":"📄",".md":"📝",".png":"🖼️",".jpg":"🖼️",".jpeg":"🖼️",".webp":"🖼️",".bmp":"🖼️",".tiff":"🖼️" };
   const PROVIDER_DEFAULTS = {
     groq: {
@@ -588,6 +699,8 @@
       const data = await res.json();
       const list = document.getElementById("sourcesList");
       document.getElementById("sourceCount").innerText = data.sources.length;
+      const gs = document.getElementById('getStarted');
+      if (gs) gs.style.display = data.sources.length ? 'none' : 'block';
       if (!data.sources.length) {
         list.innerHTML = '<div class="empty-state">No sources indexed yet.</div>';
         return;
@@ -599,10 +712,24 @@
     } catch(e) {}
   }
 
-  document.getElementById("clearBtn").onclick = async () => {
-    if (!confirm("Clear all indexed sources?")) return;
+  document.getElementById("clearBtn").onclick = () => {
+    document.getElementById("clearBtn").style.display = "none";
+    document.getElementById("clearConfirm").style.display = "flex";
+    document.getElementById("clearActions").style.display = "flex";
+  };
+
+  document.getElementById("clearNo").onclick = () => {
+    document.getElementById("clearBtn").style.display = "";
+    document.getElementById("clearConfirm").style.display = "none";
+    document.getElementById("clearActions").style.display = "none";
+  };
+
+  document.getElementById("clearYes").onclick = async () => {
     await fetch(`${BASE}/sources`, { method: "DELETE" });
     document.getElementById("ingestLog").innerHTML = "";
+    document.getElementById("clearBtn").style.display = "";
+    document.getElementById("clearConfirm").style.display = "none";
+    document.getElementById("clearActions").style.display = "none";
     loadSources();
   };
 
@@ -633,6 +760,16 @@
         : "No key configured. Paste a provider key below.";
       applyProviderDefaults();
       status.innerText = `Active: ${data.provider} / ${data.model}${data.has_api_key ? " / key set" : " / no key"}`;
+      // Auto-collapse if key is set
+      const content = document.getElementById('llmContent');
+      const chevron = document.getElementById('llmChevron');
+      if (data.has_api_key) {
+        content.classList.remove('open');
+        chevron.classList.remove('open');
+      } else {
+        content.classList.add('open');
+        chevron.classList.add('open');
+      }
     } catch(e) {
       status.innerText = "Could not load LLM settings.";
     }
@@ -744,7 +881,15 @@
     btn.disabled = false;
   };
 
-  browse("/Users");
+  // LLM Settings toggle
+  document.getElementById('llmToggle').onclick = () => {
+    const content = document.getElementById('llmContent');
+    const chevron = document.getElementById('llmChevron');
+    content.classList.toggle('open');
+    chevron.classList.toggle('open');
+  };
+
+  browse("");
   loadSources();
   loadLlmConfig();
 </script>
