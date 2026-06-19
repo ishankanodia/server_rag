@@ -32,7 +32,7 @@ def _get_model():
     return _model
 
 # Persistence paths
-DATA_DIR = os.getenv("RAG_DATA_DIR", "rag_data")
+DATA_DIR = os.getenv("RAG_DATA_DIR", os.path.expanduser("~/.filewhisper/rag_data"))
 INDEX_PATH = os.path.join(DATA_DIR, "index.faiss")
 DOCS_PATH = os.path.join(DATA_DIR, "documents.pkl")
 SOURCES_PATH = os.path.join(DATA_DIR, "sources.json")
@@ -97,17 +97,78 @@ def extract_text_from_file(filepath: str) -> str:
         text = ""
         try:
             doc = fitz.open(filepath)
-            for page in doc:
-                text += page.get_text()
+            reader = None
+            
+            def is_gibberish(txt: str) -> bool:
+                cleaned_txt = txt.strip()
+                if not cleaned_txt:
+                    return True
+                words = cleaned_txt.split()
+                if not words:
+                    return True
+                gibberish_words = 0
+                for w in words:
+                    if w.isdigit():
+                        continue
+                    clean = w.strip(".,;:?!'\"()[]{}|•")
+                    if not clean:
+                        continue
+                    if not clean.isalnum():
+                        gibberish_words += 1
+                        continue
+                    # Check if it contains a weird mixed alphanumeric structure
+                    has_letters = any(c.isalpha() for c in clean)
+                    has_digits = any(c.isdigit() for c in clean)
+                    if has_letters and has_digits:
+                        if len(clean) != 10:  # Allow 10-char PAN numbers
+                            gibberish_words += 1
+                
+                ratio_gibberish = gibberish_words / len(words)
+                return ratio_gibberish > 0.15
+
+            for page_num, page in enumerate(doc):
+                page_text = page.get_text()
+                
+                # Check if page text is empty or has a very low ratio of normal alphanumeric characters
+                cleaned = page_text.strip()
+                if len(cleaned) > 0:
+                    alnum_count = sum(1 for c in cleaned if c.isalnum() or c.isspace())
+                    ratio = alnum_count / len(cleaned)
+                else:
+                    ratio = 0
+                
+                # Fallback to EasyOCR if the text layer is too short, mostly garbage, or detected as gibberish
+                if len(cleaned) < 60 or ratio < 0.65 or is_gibberish(page_text):
+                    try:
+                        if reader is None:
+                            import easyocr
+                            import logging
+                            # Suppress excessive easyocr logs
+                            logging.getLogger('easyocr').setLevel(logging.WARNING)
+                            reader = easyocr.Reader(['en'], verbose=False)
+                            
+                        pix = page.get_pixmap(dpi=150)
+                        img_data = pix.tobytes("png")
+                        ocr_results = reader.readtext(img_data, detail=0)
+                        ocr_page_text = " ".join(ocr_results)
+                        if ocr_page_text.strip():
+                            page_text = ocr_page_text
+                    except Exception as ocr_err:
+                        logger.warning(f"EasyOCR fallback failed on page {page_num} of {filepath}: {ocr_err}")
+                
+                text += page_text + "\n"
         except Exception as e:
             text = f"[Error reading PDF: {e}]"
         return text
 
     elif ext in [".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff"]:
         try:
-            img = Image.open(filepath)
-            text = pytesseract.image_to_string(img)
-            return text
+            import easyocr
+            import logging
+            logging.getLogger('easyocr').setLevel(logging.WARNING)
+            reader = easyocr.Reader(['en'], verbose=False)
+            ocr_results = reader.readtext(filepath, detail=0)
+            return " ".join(ocr_results)
         except Exception as e:
             return f"[Error reading image: {e}]"
 

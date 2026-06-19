@@ -426,6 +426,7 @@
       color: var(--accent);
       font-style: italic;
       display: inline-block;
+      white-space: pre-wrap;
     }
 
     /* Welcome / Get Started Dashboard */
@@ -584,6 +585,7 @@
           <div class="settings-grid">
             <label for="llmProvider">Provider</label>
             <select class="field" id="llmProvider">
+              <option value="free-huggingface">Free Assistant (No Key Required)</option>
               <option value="groq">Groq</option>
               <option value="openai">OpenAI</option>
               <option value="anthropic">Anthropic Claude</option>
@@ -668,6 +670,14 @@
 
     const EXT_ICONS = { ".pdf":"📕",".txt":"📄",".md":"📝",".png":"🖼️",".jpg":"🖼️",".jpeg":"🖼️",".webp":"🖼️",".bmp":"🖼️",".tiff":"🖼️" };
     const PROVIDER_DEFAULTS = {
+      "free-huggingface": {
+        model: "mistralai/Mistral-7B-Instruct-v0.3",
+        baseUrl: "https://router.huggingface.co/hf-inference/models",
+        models: [
+          "mistralai/Mistral-7B-Instruct-v0.3",
+          "HuggingFaceH4/zephyr-7b-beta"
+        ]
+      },
       groq: {
         model: "llama-3.3-70b-versatile",
         baseUrl: "https://api.groq.com/openai/v1",
@@ -886,10 +896,22 @@
       const model = document.getElementById("llmModel");
       const baseUrl = document.getElementById("llmBaseUrl");
       const modelList = document.getElementById("llmModelList");
+      const apiKey = document.getElementById("llmApiKey");
+      
       modelList.innerHTML = (defaults.models || []).map(name => `<option value="${name}"></option>`).join("");
       if (!model.value.trim()) model.value = defaults.model;
       if (provider !== "custom") baseUrl.value = defaults.baseUrl;
       baseUrl.disabled = provider !== "custom";
+
+      const placeholderMap = {
+        "free-huggingface": "Optional / keyless (free fallback active)",
+        "groq": "Paste your Groq API key",
+        "openai": "Paste your OpenAI API key",
+        "anthropic": "Paste your Anthropic API key",
+        "gemini": "Paste your Gemini API key",
+        "custom": "Paste your custom provider API key"
+      };
+      apiKey.placeholder = placeholderMap[provider] || "Paste your API key";
     }
 
     async function loadLlmConfig() {
@@ -898,20 +920,20 @@
       try {
         const res = await fetch(`${BASE}/llm-config`);
         const data = await res.json();
-        document.getElementById("llmProvider").value = data.provider || "groq";
+        document.getElementById("llmProvider").value = data.provider || "free-huggingface";
         document.getElementById("llmModel").value = data.model || "";
         document.getElementById("llmBaseUrl").value = data.base_url || "";
         document.getElementById("llmApiKey").value = "";
         document.getElementById("llmKeyNote").innerText = data.has_api_key
           ? "Configured."
-          : "Not configured.";
+          : (data.provider === "free-huggingface" ? "Optional / keyless." : "Not configured.");
         applyProviderDefaults();
-        status.innerText = `Active: ${data.provider} / ${data.model}${data.has_api_key ? " (key set)" : " (no key)"}`;
+        status.innerText = `Active: ${data.provider} / ${data.model}${data.has_api_key ? " (key set)" : (data.provider === "free-huggingface" ? " (free, keyless)" : " (no key)")}`;
         
-        // Auto-collapse if key is set
+        // Auto-collapse if key is set or if using the free keyless assistant
         const content = document.getElementById('llmContent');
         const chevron = document.getElementById('llmChevron');
-        if (data.has_api_key) {
+        if (data.has_api_key || data.provider === "free-huggingface") {
           content.classList.remove('open');
           chevron.classList.remove('open');
         } else {
@@ -965,10 +987,10 @@
     };
 
     function typeText(el, text, speed=10, cb=null) {
-      el.innerText = ""; let i = 0;
+      el.textContent = ""; let i = 0;
       function go() { 
         if (i < text.length) { 
-          el.innerText += text.charAt(i++); 
+          el.textContent += text.charAt(i++); 
           if (cb) cb();
           setTimeout(go, speed); 
         } else if (cb) {

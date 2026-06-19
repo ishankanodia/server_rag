@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from rag import ingest_path, retrieve, get_indexed_sources, clear_index
+from .rag import ingest_path, retrieve, get_indexed_sources, clear_index
 
 import json
 import re
@@ -26,7 +26,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+PACKAGE_DIR = Path(__file__).parent
+STATIC_DIR = PACKAGE_DIR / "static"
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 # =========================
@@ -51,6 +53,12 @@ class LLMConfigRequest(BaseModel):
 # Utils
 # =========================
 PROVIDER_DEFAULTS = {
+    "free-huggingface": {
+        "model": "mistralai/Mistral-7B-Instruct-v0.3",
+        "base_url": "https://router.huggingface.co/hf-inference/models",
+        "api_key_env": "HF_API_KEY",
+        "api_style": "huggingface",
+    },
     "groq": {
         "model": "llama-3.3-70b-versatile",
         "base_url": "https://api.groq.com/openai/v1",
@@ -85,10 +93,11 @@ PROVIDER_DEFAULTS = {
 
 
 llm_config = {
-    "provider": os.getenv("LLM_PROVIDER", "groq").lower(),
+    "provider": os.getenv("LLM_PROVIDER", "free-huggingface").lower(),
     "model": os.getenv("LLM_MODEL", ""),
     "base_url": os.getenv("LLM_BASE_URL", ""),
     "api_keys": {
+        "free-huggingface": os.getenv("HF_API_KEY", ""),
         "groq": os.getenv("GROQ_API_KEY", ""),
         "openai": os.getenv("OPENAI_API_KEY", ""),
         "anthropic": os.getenv("ANTHROPIC_API_KEY", ""),
@@ -136,7 +145,7 @@ def _save_llm_config():
 
 
 def _normalize_provider(provider: str) -> str:
-    provider = (provider or "groq").strip().lower()
+    provider = (provider or "free-huggingface").strip().lower()
     return provider if provider in PROVIDER_DEFAULTS else "custom"
 
 
@@ -144,7 +153,7 @@ _load_saved_llm_config()
 
 
 def _effective_llm_config() -> dict:
-    provider = _normalize_provider(llm_config.get("provider", "groq"))
+    provider = _normalize_provider(llm_config.get("provider", "free-huggingface"))
     defaults = PROVIDER_DEFAULTS[provider]
     api_key = llm_config["api_keys"].get(provider) or os.getenv(defaults["api_key_env"], "")
 
@@ -255,8 +264,98 @@ def _call_gemini(cfg: dict, prompt: str, max_tokens: int) -> str:
     return "".join(part.get("text", "") for part in parts).strip()
 
 
+def _call_free_huggingface(cfg: dict, prompt: str, max_tokens: int) -> str:
+    api_key = cfg.get("api_key")
+    
+    if api_key:
+        # User has provided an API key, use Hugging Face Serverless Inference
+        model = cfg["model"] or "mistralai/Mistral-7B-Instruct-v0.3"
+        api_url = f"https://router.huggingface.co/hf-inference/models/{model}"
+        
+        system_instr = "Answer ONLY using provided context. Be structured and clear."
+        full_prompt = f"<s>[INST] {system_instr}\n\n{prompt} [/INST]"
+        
+        data = {
+            "inputs": full_prompt,
+            "parameters": {
+                "max_new_tokens": max_tokens,
+                "temperature": 0.5,
+                "return_full_text": False
+            }
+        }
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
+        
+        req = urllib.request.Request(
+            api_url,
+            data=json.dumps(data).encode("utf-8"),
+            headers=headers,
+            method="POST"
+        )
+        
+        try:
+            with urllib.request.urlopen(req, timeout=20) as response:
+                res_data = json.loads(response.read().decode("utf-8"))
+                if isinstance(res_data, list) and len(res_data) > 0:
+                    return res_data[0].get("generated_text", "").strip()
+                elif isinstance(res_data, dict):
+                    return res_data.get("generated_text", "").strip()
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode("utf-8", errors="ignore")
+            raise RuntimeError(f"Hugging Face API error ({e.code}): {detail[:300]}")
+        except Exception as e:
+            raise RuntimeError(f"Hugging Face API error: {e}")
+            
+    else:
+        # Keyless mode: use Pollinations AI as a free fallback
+        api_url = "https://text.pollinations.ai/"
+        payload = {
+            "messages": [{"role": "user", "content": prompt}],
+            "model": "openai",
+            "jsonMode": False
+        }
+        
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        
+        req = urllib.request.Request(
+            api_url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method="POST"
+        )
+        
+        try:
+            with urllib.request.urlopen(req, timeout=30) as response:
+                return response.read().decode("utf-8").strip()
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                raise RuntimeError(
+                    "Free Assistant rate limit reached. Please try again in a few seconds, "
+                    "or add your own API key in LLM Settings for higher limits."
+                )
+            detail = e.read().decode("utf-8", errors="ignore")
+            raise RuntimeError(f"Free Assistant API error ({e.code}): {detail[:300]}")
+        except Exception as e:
+            raise RuntimeError(
+                f"Free Assistant API error: {e}. Please check your internet connection "
+                "or add an API key in LLM Settings."
+            )
+        
+    return "Error generating response from Free Assistant."
+
+
 def call_llm(prompt: str, max_tokens=400):
     cfg = _effective_llm_config()
+    
+    if cfg["provider"] == "free-huggingface" or cfg["api_style"] == "huggingface":
+        return _call_free_huggingface(cfg, prompt, max_tokens)
+
     if not cfg["api_key"]:
         raise RuntimeError(
             "No LLM API key configured. Set the provider key in .env or deployment secrets."
@@ -373,7 +472,7 @@ graph = builder.compile()
 
 @app.get("/")
 def serve_ui():
-    return FileResponse("static/index.html")
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.get("/health")

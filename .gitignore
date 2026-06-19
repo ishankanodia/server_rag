@@ -19,3 +19,4 @@ dist/*
 !dist/.gitkeep
 !dist/filewhisper-backend
 src-tauri/target/
+*.egg-info/

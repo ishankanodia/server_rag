@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "filewhisper"
+version = "0.1.0"
+description = "Local RAG document assistant server with keyless LLM support."
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "sentence-transformers",
+    "faiss-cpu",
+    "numpy",
+    "python-dotenv",
+    "langgraph",
+    "PyMuPDF",
+    "Pillow",
+    "pytesseract",
+    "easyocr",
+]
+
+[project.scripts]
+filewhisper = "filewhisper.server_launcher:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["filewhisper*"]
+
+[tool.setuptools.package-data]
+filewhisper = ["static/*"]
