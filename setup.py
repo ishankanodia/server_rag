@@ -17,14 +17,12 @@ setup(
     install_requires=[
         "fastapi",
         "uvicorn",
-        "sentence-transformers",
+        "fastembed",
         "faiss-cpu",
         "numpy",
         "python-dotenv",
         "langgraph",
         "PyMuPDF",
-        "Pillow",
-        "pytesseract",
-        "easyocr",
+        "rapidocr-onnxruntime",
     ]
 )

@@ -4,7 +4,6 @@ __pycache__/
 .env
 .venv/
 venv/
-node_modules/
 
 # Local indexes may contain private document text and file paths.
 rag_data/
@@ -15,8 +14,5 @@ rag_data/
 
 # Build output
 build/
-dist/*
-!dist/.gitkeep
-!dist/filewhisper-backend
-src-tauri/target/
+dist/
 *.egg-info/

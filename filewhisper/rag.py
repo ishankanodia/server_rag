@@ -1,35 +1,68 @@
-from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
 import os
 import json
 import pickle
 
-# PDF
+# PDF text extraction (lightweight, no PyTorch)
 import fitz  # PyMuPDF
 
-# OCR for images
-from PIL import Image
-import pytesseract
+# ONNX-based embeddings — same MiniLM model as before, but no PyTorch
+from fastembed import TextEmbedding
 
 import logging
 
 logger = logging.getLogger(__name__)
 
 _model = None
+_ocr = None
 
 
 def _get_model():
     global _model
     if _model is None:
         try:
-            _model = SentenceTransformer('all-MiniLM-L6-v2')
+            _model = TextEmbedding("sentence-transformers/all-MiniLM-L6-v2")
         except Exception as e:
             logger.error("Failed to load embedding model: %s", e)
             raise RuntimeError(
-                "Could not load the embedding model. Check your internet connection for first-time download."
+                "Could not load the embedding model. Check your internet connection for the first-time download."
             ) from e
     return _model
+
+
+def _embed(texts) -> np.ndarray:
+    """Embed a list of texts into a float32 matrix (FAISS requires float32)."""
+    vectors = list(_get_model().embed(list(texts)))
+    return np.array(vectors, dtype="float32")
+
+
+def _get_ocr():
+    """Lazy-load the ONNX OCR engine (torch-free). Optional dependency."""
+    global _ocr
+    if _ocr is None:
+        from rapidocr_onnxruntime import RapidOCR
+        _ocr = RapidOCR()
+    return _ocr
+
+
+def _ocr_image(src) -> str:
+    """OCR an image given a file path, PNG bytes, or ndarray. Returns extracted text.
+
+    Gracefully returns "" if the optional OCR engine is not installed so that
+    text/markdown/digital-PDF indexing still works on a minimal install.
+    """
+    try:
+        ocr = _get_ocr()
+    except ImportError:
+        logger.warning(
+            "OCR engine (rapidocr-onnxruntime) not installed; skipping image text extraction."
+        )
+        return ""
+    result, _ = ocr(src)
+    if not result:
+        return ""
+    return " ".join(line[1] for line in result)
 
 # Persistence paths
 DATA_DIR = os.getenv("RAG_DATA_DIR", os.path.expanduser("~/.filewhisper/rag_data"))
@@ -97,8 +130,7 @@ def extract_text_from_file(filepath: str) -> str:
         text = ""
         try:
             doc = fitz.open(filepath)
-            reader = None
-            
+
             def is_gibberish(txt: str) -> bool:
                 cleaned_txt = txt.strip()
                 if not cleaned_txt:
@@ -137,24 +169,15 @@ def extract_text_from_file(filepath: str) -> str:
                 else:
                     ratio = 0
                 
-                # Fallback to EasyOCR if the text layer is too short, mostly garbage, or detected as gibberish
+                # Fallback to OCR if the text layer is too short, mostly garbage, or detected as gibberish
                 if len(cleaned) < 60 or ratio < 0.65 or is_gibberish(page_text):
                     try:
-                        if reader is None:
-                            import easyocr
-                            import logging
-                            # Suppress excessive easyocr logs
-                            logging.getLogger('easyocr').setLevel(logging.WARNING)
-                            reader = easyocr.Reader(['en'], verbose=False)
-                            
                         pix = page.get_pixmap(dpi=150)
-                        img_data = pix.tobytes("png")
-                        ocr_results = reader.readtext(img_data, detail=0)
-                        ocr_page_text = " ".join(ocr_results)
+                        ocr_page_text = _ocr_image(pix.tobytes("png"))
                         if ocr_page_text.strip():
                             page_text = ocr_page_text
                     except Exception as ocr_err:
-                        logger.warning(f"EasyOCR fallback failed on page {page_num} of {filepath}: {ocr_err}")
+                        logger.warning(f"OCR fallback failed on page {page_num} of {filepath}: {ocr_err}")
                 
                 text += page_text + "\n"
         except Exception as e:
@@ -163,12 +186,7 @@ def extract_text_from_file(filepath: str) -> str:
 
     elif ext in [".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff"]:
         try:
-            import easyocr
-            import logging
-            logging.getLogger('easyocr').setLevel(logging.WARNING)
-            reader = easyocr.Reader(['en'], verbose=False)
-            ocr_results = reader.readtext(filepath, detail=0)
-            return " ".join(ocr_results)
+            return _ocr_image(filepath)
         except Exception as e:
             return f"[Error reading image: {e}]"
 
@@ -182,13 +200,13 @@ def add_chunks(chunks: list, source_path: str):
     if not chunks:
         return 0
 
-    embeddings = _get_model().encode(chunks)
+    embeddings = _embed(chunks)
     dimension = embeddings.shape[1]
 
     if index is None:
         index = faiss.IndexFlatL2(dimension)
 
-    index.add(np.array(embeddings))
+    index.add(embeddings)
     documents.extend(chunks)
     doc_sources.extend([source_path] * len(chunks))  # track source per chunk
 
@@ -242,8 +260,8 @@ def retrieve(query: str, k: int = 5) -> list:
     if index is None or len(documents) == 0:
         return []
 
-    query_embedding = _get_model().encode([query])
-    distances, indices = index.search(np.array(query_embedding), k)
+    query_embedding = _embed([query])
+    distances, indices = index.search(query_embedding, k)
     return [
         (documents[i], doc_sources[i])
         for i in indices[0] if i < len(documents)

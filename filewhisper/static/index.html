@@ -272,6 +272,10 @@
     .panel-title-btn .chevron { margin-left: auto; font-size: 0.92em; transition: transform 0.2s; color: var(--muted); }
     .panel-title-btn .chevron.open { transform: rotate(90deg); }
 
+    /* Collapsible LLM settings body — hidden until toggled open */
+    .collapsible-content { display: none; }
+    .collapsible-content.open { display: block; }
+
     .settings-grid {
       display: grid;
       grid-template-columns: 80px 1fr;

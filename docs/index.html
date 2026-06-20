@@ -6,7 +6,7 @@
   <title>FileWhisper — Chat With Your Local Documents Privately</title>
   
   <!-- SEO Meta Tags -->
-  <meta name="description" content="FileWhisper is a simple, private desktop app to search and chat with your local PDFs, notes, and text files offline. Your data stays 100% on your machine.">
+  <meta name="description" content="FileWhisper is a simple, private local app to search and chat with your PDFs, notes, and text files offline. Your data stays 100% on your machine.">
   <meta name="keywords" content="RAG, Local AI, LLM, private vector search, document assistant, privacy-first AI, Tauri, Mac M1 M2 M3, Mac Intel, Windows">
   
   <!-- Google Fonts -->
@@ -672,13 +672,13 @@
 
   <main class="animate-fade-in">
     <section class="hero">
-      <div class="version-tag" id="versionTag">Connecting to Releases...</div>
+      <div class="version-tag" id="versionTag">100% local • no API key needed</div>
       <h1>Chat with your documents,<br>completely offline.</h1>
       <p class="tagline">
-        FileWhisper is a simple desktop app that lets you search and ask questions about your files—like PDFs, text documents, or notes. Everything runs directly on your computer, so your data stays 100% private and never leaves your machine.
+        FileWhisper lets you search and ask questions about your files—PDFs, text, notes, even scanned images. Everything runs directly on your computer, so your data stays 100% private and never leaves your machine.
       </p>
       <div class="hero-actions">
-        <a href="#download" class="btn-primary">Download FileWhisper</a>
+        <a href="#install" class="btn-primary">Install FileWhisper</a>
       </div>
     </section>
 
@@ -701,13 +701,13 @@
       <div class="steps-flow">
         <div class="step-item">
           <div class="step-badge">1</div>
-          <div class="step-title">Download & Run</div>
-          <p class="step-desc">Grab the installer matching your system and open it. No databases or setups required.</p>
+          <div class="step-title">Paste one line</div>
+          <p class="step-desc">Open Terminal and paste the install command below. It sets everything up and adds a FileWhisper icon to your Desktop.</p>
         </div>
         <div class="step-item">
           <div class="step-badge">2</div>
-          <div class="step-title">Add your API Key</div>
-          <p class="step-desc">Paste your Groq, OpenAI, Claude, or Gemini key inside the LLM settings panel.</p>
+          <div class="step-title">Double-click to start</div>
+          <p class="step-desc">Double-click the FileWhisper icon. It opens in your browser and works with a free built-in assistant—no API key required.</p>
         </div>
         <div class="step-item">
           <div class="step-badge">3</div>
@@ -720,33 +720,35 @@
       </div>
     </section>
 
-    <!-- Download Section -->
-    <section class="download-section" id="download">
-      <h2>Download FileWhisper</h2>
-      
-      <div class="download-grid">
-        <!-- macOS Download Card -->
-        <a href="https://github.com/ishankanodia/server_rag/releases" class="download-card mac-card" id="macCard">
-          <div class="os-badge" id="macBadge">RECOMMENDED FOR YOUR PC</div>
-          <svg viewBox="0 0 24 24" class="download-icon">
-            <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 4.17c.66-.81 1.11-1.93.99-3.06-1 .04-2.21.67-2.93 1.49-.62.69-1.16 1.84-1.01 2.96 1.12.09 2.27-.57 2.95-1.39z"/>
-          </svg>
-          <div class="download-title">macOS</div>
-          <div class="download-meta">Apple Silicon M1 / M2 / M3 / M4 (.dmg)</div>
-          <div class="btn-download-action" id="macBtnText">Download DMG</div>
-        </a>
-
-        <!-- Windows Download Card -->
-        <a href="https://github.com/ishankanodia/server_rag/releases" class="download-card win-card" id="winCard">
-          <div class="os-badge" id="winBadge">RECOMMENDED FOR YOUR PC</div>
-          <svg viewBox="0 0 24 24" class="download-icon">
-            <path d="M0 3.449L9.75 2.1v9.451H0V3.449zM0 12.45h9.75v9.45L0 20.55v-8.1zM10.95 1.95L24 0v11.55H10.95V1.95zM10.95 12.45H24v11.55l-13.05-1.95v-9.6z"/>
-          </svg>
-          <div class="download-title">Windows</div>
-          <div class="download-meta">Windows 10 / 11 (.exe)</div>
-          <div class="btn-download-action" id="winBtnText">Download EXE</div>
-        </a>
+    <!-- Install Section -->
+    <section class="download-section" id="install">
+      <style>
+        .install-sub { color: var(--text-muted, #a1a1aa); max-width: 620px; margin: 0 auto 28px; line-height: 1.6; }
+        .install-box {
+          display: flex; align-items: center; gap: 12px;
+          max-width: 720px; margin: 0 auto;
+          background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 12px; padding: 16px 18px; text-align: left;
+        }
+        .install-box code {
+          flex: 1; font-family: 'Geist Mono', monospace; font-size: 14px;
+          color: #fff; overflow-x: auto; white-space: nowrap;
+        }
+        .copy-btn {
+          flex-shrink: 0; cursor: pointer; border: none; border-radius: 8px;
+          padding: 8px 16px; font-weight: 600; font-family: inherit;
+          background: #fff; color: #000; transition: opacity 0.2s;
+        }
+        .copy-btn:hover { opacity: 0.85; }
+        .install-note { color: var(--text-muted, #a1a1aa); max-width: 620px; margin: 24px auto 0; line-height: 1.6; }
+      </style>
+      <h2>Install on macOS</h2>
+      <p class="install-sub">Open the <strong>Terminal</strong> app, paste this line, and press Enter. That's the only time you'll ever need Terminal.</p>
+      <div class="install-box">
+        <code id="installCmd">curl -fsSL https://raw.githubusercontent.com/ishankanodia/server_rag/main/install.sh | bash</code>
+        <button class="copy-btn" id="copyBtn">Copy</button>
       </div>
+      <p class="install-note">A <strong>FileWhisper</strong> icon appears on your Desktop. Double-click it anytime to start — it opens in your browser, and everything stays on your computer.</p>
     </section>
 
 
@@ -761,7 +763,7 @@
         </div>
         <div class="feature-card">
           <div class="feature-title">No Complex Setup</div>
-          <div class="feature-desc">Traditional local search programs require you to set up Docker containers, relational databases, or run Python scripts in the terminal. FileWhisper is packaged as a single desktop app that works out of the box.</div>
+          <div class="feature-desc">Traditional local search programs require Docker containers, databases, or fiddly Python setups. FileWhisper installs with one command and runs as a local app in your browser—no API key needed to get started.</div>
         </div>
         <div class="feature-card">
           <div class="feature-title">Source Citation Tracking</div>
@@ -780,81 +782,18 @@
   </main>
 
   <script>
-    const REPO_OWNER = "ishankanodia";
-    const REPO_NAME = "server_rag";
-
-    const versionTag = document.getElementById("versionTag");
-    const macCard = document.getElementById("macCard");
-    const winCard = document.getElementById("winCard");
-    
-    const macBadge = document.getElementById("macBadge");
-    const winBadge = document.getElementById("winBadge");
-    
-    const macBtnText = document.getElementById("macBtnText");
-    const winBtnText = document.getElementById("winBtnText");
-
-    let releasePageUrl = `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases`;
-    let latestMacUrl = releasePageUrl;
-    let latestWinUrl = releasePageUrl;
-
-    function getOS() {
-      const userAgent = window.navigator.userAgent;
-      const platform = window.navigator.platform || "";
-      if (userAgent.indexOf("Mac") !== -1 || platform.indexOf("Mac") !== -1) {
-        return "macOS";
-      } else if (userAgent.indexOf("Win") !== -1 || platform.indexOf("Win") !== -1) {
-        return "Windows";
-      }
-      return "unknown";
-    }
-
-    function showRecommendation() {
-      const os = getOS();
-      if (os === "macOS") {
-        macBadge.style.display = "block";
-        macCard.classList.add("recommended-card");
-      } else if (os === "Windows") {
-        winBadge.style.display = "block";
-        winCard.classList.add("recommended-card");
-      }
-    }
-
-    async function loadLatestRelease() {
+    // Copy the install command to the clipboard.
+    const copyBtn = document.getElementById("copyBtn");
+    const installCmd = document.getElementById("installCmd").innerText;
+    copyBtn.addEventListener("click", async () => {
       try {
-        const response = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`);
-        if (!response.ok) throw new Error("Failed to contact GitHub API");
-        const data = await response.json();
-        
-        const tag = data.tag_name;
-        versionTag.innerText = `Latest version: ${tag}`;
-        releasePageUrl = data.html_url;
-
-        const assets = data.assets || [];
-        assets.forEach(asset => {
-          const name = asset.name.toLowerCase();
-          if (name.endsWith(".dmg")) {
-            latestMacUrl = asset.browser_download_url;
-          } else if (name.endsWith(".exe")) {
-            latestWinUrl = asset.browser_download_url;
-          }
-        });
-
-        macCard.href = latestMacUrl;
-        winCard.href = latestWinUrl;
-        
-        macBtnText.innerText = `Download DMG (${tag})`;
-        winBtnText.innerText = `Download EXE (${tag})`;
-      } catch (err) {
-        versionTag.innerText = "Version 0.1.0";
-        macCard.href = "#download";
-        winCard.href = "#download";
-        macBtnText.innerText = "Download DMG";
-        winBtnText.innerText = "Download EXE";
+        await navigator.clipboard.writeText(installCmd);
+        copyBtn.innerText = "Copied!";
+        setTimeout(() => (copyBtn.innerText = "Copy"), 1500);
+      } catch (e) {
+        copyBtn.innerText = "Copy failed";
       }
-      showRecommendation();
-    }
-
-    loadLatestRelease();
+    });
   </script>
 </body>
 </html>

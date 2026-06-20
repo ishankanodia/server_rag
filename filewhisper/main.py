@@ -310,44 +310,47 @@ def _call_free_huggingface(cfg: dict, prompt: str, max_tokens: int) -> str:
             raise RuntimeError(f"Hugging Face API error: {e}")
             
     else:
-        # Keyless mode: use Pollinations AI as a free fallback
+        # Keyless mode: use Pollinations AI as a free fallback.
+        # It can be slow on a cold start, so use a generous timeout and retry
+        # once on a transient timeout/connection error before giving up.
         api_url = "https://text.pollinations.ai/"
         payload = {
             "messages": [{"role": "user", "content": prompt}],
             "model": "openai",
             "jsonMode": False
         }
-        
+
         headers = {
             "Content-Type": "application/json",
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
-        
-        req = urllib.request.Request(
-            api_url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers=headers,
-            method="POST"
-        )
-        
-        try:
-            with urllib.request.urlopen(req, timeout=30) as response:
-                return response.read().decode("utf-8").strip()
-        except urllib.error.HTTPError as e:
-            if e.code == 429:
-                raise RuntimeError(
-                    "Free Assistant rate limit reached. Please try again in a few seconds, "
-                    "or add your own API key in LLM Settings for higher limits."
-                )
-            detail = e.read().decode("utf-8", errors="ignore")
-            raise RuntimeError(f"Free Assistant API error ({e.code}): {detail[:300]}")
-        except Exception as e:
-            raise RuntimeError(
-                f"Free Assistant API error: {e}. Please check your internet connection "
-                "or add an API key in LLM Settings."
+
+        last_err = None
+        for _attempt in range(2):
+            req = urllib.request.Request(
+                api_url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers=headers,
+                method="POST"
             )
-        
-    return "Error generating response from Free Assistant."
+            try:
+                with urllib.request.urlopen(req, timeout=60) as response:
+                    return response.read().decode("utf-8").strip()
+            except urllib.error.HTTPError as e:
+                if e.code == 429:
+                    raise RuntimeError(
+                        "Free Assistant rate limit reached. Please try again in a few seconds, "
+                        "or add your own API key in LLM Settings for higher limits."
+                    )
+                detail = e.read().decode("utf-8", errors="ignore")
+                raise RuntimeError(f"Free Assistant API error ({e.code}): {detail[:300]}")
+            except Exception as e:
+                last_err = e  # transient (timeout/connection) — retry once
+
+        raise RuntimeError(
+            f"Free Assistant API error: {last_err}. Please check your internet connection "
+            "or add an API key in LLM Settings."
+        )
 
 
 def call_llm(prompt: str, max_tokens=400):
