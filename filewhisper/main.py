@@ -182,7 +182,15 @@ def clean_text(text: str) -> str:
     # Remove Markdown bold markers some models emit despite instructions
     text = text.replace('**', '')
     text = text.encode("ascii", "ignore").decode()
-    text = re.sub(r'\s+', ' ', text)
+    # Normalize bullet markers into newline-prefixed "- " bullets so lists stack
+    # instead of running together on one line.
+    text = text.replace(' • ', '\n- ').replace('• ', '\n- ')
+    text = re.sub(r'\s\*\s+', '\n- ', text)                   # " * " -> bullet
+    text = re.sub(r'(?<!\n)\s-\s(?=[A-Z0-9])', '\n- ', text)  # " - X" -> bullet
+    # Collapse runs of spaces/tabs but KEEP newlines (don't flatten the list)
+    text = re.sub(r'[ \t]+', ' ', text)
+    text = re.sub(r'[ \t]*\n[ \t]*', '\n', text)
+    text = re.sub(r'\n{3,}', '\n\n', text)
     return text.strip()
 
 
