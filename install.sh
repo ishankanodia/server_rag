@@ -2,7 +2,7 @@
 #
 # FileWhisper - one-line installer (macOS & Linux)
 #
-#   curl -fsSL https://raw.githubusercontent.com/ishankanodia/server_rag/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/ishankanodia/FileWhisper/main/install.sh | bash
 #
 # What it does:
 #   1. Downloads FileWhisper into ~/.filewhisper/app
@@ -14,7 +14,7 @@
 #
 set -e
 
-REPO="ishankanodia/server_rag"
+REPO="ishankanodia/FileWhisper"
 BRANCH="${FILEWHISPER_BRANCH:-main}"
 APP_DIR="$HOME/.filewhisper/app"
 VENV="$APP_DIR/.venv"

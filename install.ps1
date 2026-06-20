@@ -1,6 +1,6 @@
 # FileWhisper - one-line installer (Windows 10/11)
 #
-#   irm https://raw.githubusercontent.com/ishankanodia/server_rag/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/ishankanodia/FileWhisper/main/install.ps1 | iex
 #
 # What it does:
 #   1. Finds Python (installs it via winget if missing)
@@ -13,7 +13,7 @@
 $ErrorActionPreference = "Stop"
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocol]::Tls12 } catch {}
 
-$Repo    = "ishankanodia/server_rag"
+$Repo    = "ishankanodia/FileWhisper"
 $Branch  = "main"
 $AppDir  = Join-Path $env:USERPROFILE ".filewhisper\app"
 $PidFile = Join-Path $env:USERPROFILE ".filewhisper\filewhisper.pid"

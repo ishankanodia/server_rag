@@ -20,7 +20,7 @@ The app indexes local documents, retrieves relevant chunks with FAISS, and answe
 For non-technical users — no Git, Node, or Rust required. Open a **Terminal** and paste this single line:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ishankanodia/server_rag/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ishankanodia/FileWhisper/main/install.sh | bash
 ```
 
 This downloads FileWhisper, builds a small isolated environment (~400 MB, no PyTorch), pre-loads the local AI models, and drops a **FileWhisper** launcher on your Desktop (a `.app` on macOS, a `.desktop` entry on Linux). After that, just **double-click FileWhisper** — it opens in your web browser with no terminal window. You never need Terminal again.
@@ -34,7 +34,7 @@ Everything runs locally. The built-in free assistant means you don't even need a
 Open **PowerShell** and paste this one line:
 
 ```powershell
-irm https://raw.githubusercontent.com/ishankanodia/server_rag/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/ishankanodia/FileWhisper/main/install.ps1 | iex
 ```
 
 It installs Python if needed (via winget), sets up the same small isolated environment, and puts **FileWhisper** and **Stop FileWhisper** shortcuts (with the logo) on your Desktop. Double-click **FileWhisper** to start — it opens in your browser with **no console window** — and **Stop FileWhisper** to stop it.
@@ -44,8 +44,8 @@ It installs Python if needed (via winget), sets up the same small isolated envir
 Developers can clone the repo and run the app locally from Terminal.
 
 ```bash
-git clone https://github.com/ishankanodia/server_rag.git
-cd server_rag
+git clone https://github.com/ishankanodia/FileWhisper.git
+cd FileWhisper
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
