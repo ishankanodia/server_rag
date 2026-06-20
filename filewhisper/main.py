@@ -182,12 +182,38 @@ def clean_text(text: str) -> str:
     # Remove Markdown bold markers some models emit despite instructions
     text = text.replace('**', '')
     text = text.encode("ascii", "ignore").decode()
-    # Normalize bullet markers into newline-prefixed "- " bullets so lists stack
-    # instead of running together on one line.
-    text = text.replace(' • ', '\n- ').replace('• ', '\n- ')
-    text = re.sub(r'\s\*\s+', '\n- ', text)                   # " * " -> bullet
-    text = re.sub(r'(?<!\n)\s-\s(?=[A-Z0-9])', '\n- ', text)  # " - X" -> bullet
-    # Collapse runs of spaces/tabs but KEEP newlines (don't flatten the list)
+
+    # Safety net: if the model ignores the instruction and returns a bullet or
+    # numbered list, merge each run of list items back into a flowing sentence
+    # so the reply always reads like a chatbot, never as a list.
+    lines = text.split('\n')
+    out, run = [], []
+
+    def _flush_run():
+        if not run:
+            return
+        frags = []
+        for item in run:
+            item = item.strip().rstrip(';,')
+            if item and item[-1] not in '.!?:':
+                item += '.'
+            if item:
+                frags.append(item)
+        if frags:
+            out.append(' '.join(frags))
+        run.clear()
+
+    for line in lines:
+        m = re.match(r'^\s*(?:[-*•]|\d+[.)])\s+(.*)$', line)
+        if m:
+            run.append(m.group(1))
+        else:
+            _flush_run()
+            out.append(line)
+    _flush_run()
+    text = '\n'.join(out)
+
+    # Collapse runs of spaces/tabs but keep paragraph line breaks intact
     text = re.sub(r'[ \t]+', ' ', text)
     text = re.sub(r'[ \t]*\n[ \t]*', '\n', text)
     text = re.sub(r'\n{3,}', '\n\n', text)
@@ -420,15 +446,16 @@ def answer_node(state: GraphState):
         return {}
 
     prompt = f"""
-You are a precise document assistant. Answer the question using ONLY the context below.
+You are a helpful, friendly assistant answering questions about the user's own documents, using ONLY the context below.
 
-Guidelines:
-- Pull out concrete specifics when they appear: names, dates, times, places, routes, flight/PNR/booking/reference numbers, amounts, and statuses.
-- If the context contains several records (e.g. multiple tickets or files), list each one separately so they are easy to compare.
-- Prefer the specific details in the documents over generic terms, instructions, or boilerplate.
-- Use short bullet points. Be concise but complete.
-- Do not use markdown bold or asterisks.
-- If the answer is not in the context, say so plainly instead of guessing.
+Write your answer as a natural, flowing reply in plain sentences and short paragraphs, exactly like a chatbot talking to a person. Never use bullet points, dashes, numbered lists, or markdown. Even when stating several facts, put them in sentences.
+
+For example, instead of writing:
+- Flight: 6E333
+- Date: 11 Feb
+write it as: "Your flight 6E333 departs on 11 Feb..."
+
+Include the specific details that matter (names, dates, times, places, numbers, references) inside your sentences, and prefer those concrete details over generic boilerplate. If the answer is not in the context, say so plainly instead of guessing.
 
 Context:
 {state['context']}
