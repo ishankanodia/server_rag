@@ -723,13 +723,26 @@
     <!-- Install Section -->
     <section class="download-section" id="install">
       <style>
-        .install-sub { color: var(--text-muted, #a1a1aa); max-width: 620px; margin: 0 auto 28px; line-height: 1.6; }
+        .install-sub { color: var(--text-muted, #a1a1aa); max-width: 640px; margin: 0 auto 22px; line-height: 1.6; }
+        .os-tabs {
+          display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 22px;
+          border-radius: 12px; background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+        }
+        .os-tab {
+          cursor: pointer; border: none; background: transparent;
+          color: var(--text-muted, #a1a1aa); font-family: inherit; font-size: 14px;
+          font-weight: 600; padding: 9px 22px; border-radius: 9px; transition: all 0.15s;
+        }
+        .os-tab:hover { color: #fff; }
+        .os-tab.active { background: #fff; color: #000; }
         .install-box {
           display: flex; align-items: center; gap: 12px;
-          max-width: 720px; margin: 0 auto;
+          max-width: 780px; margin: 0 auto;
           background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1);
           border-radius: 12px; padding: 16px 18px; text-align: left;
         }
+        .install-box .prompt { color: #4ade80; font-family: 'Geist Mono', monospace; flex-shrink: 0; user-select: none; }
         .install-box code {
           flex: 1; font-family: 'Geist Mono', monospace; font-size: 14px;
           color: #fff; overflow-x: auto; white-space: nowrap;
@@ -740,15 +753,23 @@
           background: #fff; color: #000; transition: opacity 0.2s;
         }
         .copy-btn:hover { opacity: 0.85; }
-        .install-note { color: var(--text-muted, #a1a1aa); max-width: 620px; margin: 24px auto 0; line-height: 1.6; }
+        .install-note { color: var(--text-muted, #a1a1aa); max-width: 640px; margin: 22px auto 0; line-height: 1.6; }
       </style>
-      <h2>Install on macOS</h2>
-      <p class="install-sub">Open the <strong>Terminal</strong> app, paste this line, and press Enter. That's the only time you'll ever need Terminal.</p>
+      <h2>Get FileWhisper</h2>
+      <p class="install-sub">Open a terminal, paste the line for your system, and press Enter. Everything runs locally on your machine.</p>
+
+      <div class="os-tabs" id="osTabs">
+        <button class="os-tab" data-os="mac">macOS</button>
+        <button class="os-tab" data-os="windows">Windows</button>
+        <button class="os-tab" data-os="linux">Linux</button>
+      </div>
+
       <div class="install-box">
-        <code id="installCmd">curl -fsSL https://raw.githubusercontent.com/ishankanodia/server_rag/main/install.sh | bash</code>
+        <span class="prompt" id="installPrompt">$</span>
+        <code id="installCmd"></code>
         <button class="copy-btn" id="copyBtn">Copy</button>
       </div>
-      <p class="install-note">A <strong>FileWhisper</strong> icon appears on your Desktop. Double-click it anytime to start — it opens in your browser, and everything stays on your computer.</p>
+      <p class="install-note" id="installNote"></p>
     </section>
 
 
@@ -782,16 +803,52 @@
   </main>
 
   <script>
-    // Copy the install command to the clipboard.
-    const copyBtn = document.getElementById("copyBtn");
-    const installCmd = document.getElementById("installCmd").innerText;
+    const CURL = "curl -fsSL https://raw.githubusercontent.com/ishankanodia/server_rag/main/install.sh | bash";
+    const OS_CMDS = {
+      mac: CURL,
+      linux: CURL,
+      windows: "irm https://raw.githubusercontent.com/ishankanodia/server_rag/main/install.ps1 | iex"
+    };
+    const OS_PROMPT = { mac: "$", linux: "$", windows: ">" };
+    const OS_NOTES = {
+      mac: "Open the <strong>Terminal</strong> app (press Cmd+Space, type \"Terminal\"). A <strong>FileWhisper</strong> icon appears on your Desktop &mdash; double-click it to start. It opens in your browser, and everything stays on your computer.",
+      windows: "Open <strong>PowerShell</strong> (press Start, type \"PowerShell\"). <strong>FileWhisper</strong> and <strong>Stop FileWhisper</strong> shortcuts appear on your Desktop &mdash; double-click FileWhisper to start. No console window; it opens in your browser.",
+      linux: "Open your <strong>terminal</strong>. A <strong>FileWhisper</strong> launcher appears on your Desktop and in your app menu &mdash; open it to start. (You may need to right-click &rarr; Allow Launching the first time.)"
+    };
+
+    const cmdEl    = document.getElementById("installCmd");
+    const noteEl   = document.getElementById("installNote");
+    const promptEl = document.getElementById("installPrompt");
+    const copyBtn  = document.getElementById("copyBtn");
+
+    function detectOS() {
+      const s = ((navigator.userAgent || "") + " " + (navigator.platform || "")).toLowerCase();
+      if (s.includes("win")) return "windows";
+      if (s.includes("linux") || s.includes("x11")) return "linux";
+      return "mac";
+    }
+
+    function selectOS(os) {
+      cmdEl.textContent = OS_CMDS[os];
+      noteEl.innerHTML = OS_NOTES[os];
+      promptEl.textContent = OS_PROMPT[os];
+      document.querySelectorAll(".os-tab").forEach(b =>
+        b.classList.toggle("active", b.dataset.os === os)
+      );
+    }
+
+    document.querySelectorAll(".os-tab").forEach(b =>
+      b.addEventListener("click", () => selectOS(b.dataset.os))
+    );
+    selectOS(detectOS());
+
     copyBtn.addEventListener("click", async () => {
       try {
-        await navigator.clipboard.writeText(installCmd);
-        copyBtn.innerText = "Copied!";
-        setTimeout(() => (copyBtn.innerText = "Copy"), 1500);
+        await navigator.clipboard.writeText(cmdEl.textContent);
+        copyBtn.textContent = "Copied!";
+        setTimeout(() => (copyBtn.textContent = "Copy"), 1500);
       } catch (e) {
-        copyBtn.innerText = "Copy failed";
+        copyBtn.textContent = "Copy failed";
       }
     });
   </script>
