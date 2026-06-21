@@ -1,79 +1,76 @@
-# FileWhisper
+<div align="center">
 
-Desktop-ready local RAG for asking questions over files on your computer.
+# 🔍 FileWhisper
 
-The app indexes local documents, retrieves relevant chunks with FAISS, and answers questions using a configurable LLM provider.
+### Chat with your files. 100% local. One-line install.
 
-## Features
+FileWhisper indexes documents on your computer and answers questions about them with an LLM — **your files never leave your machine.** No cloud upload, no account, and it works out of the box with **no API key**.
 
-- 100% local: your files never leave your computer.
-- Works with no API key out of the box (a free built-in assistant).
-- Browse and index local folders/files, then ask questions over them.
-- Supports `.txt`, `.md`, `.pdf`, and common image formats.
-- Extracts PDF text with PyMuPDF, with automatic OCR fallback for scanned pages.
-- Reads images and scanned PDFs with a lightweight ONNX OCR engine (no PyTorch).
-- Local FAISS vector search with ONNX MiniLM embeddings (fast, ~400 MB install, no PyTorch).
-- Optional providers: Groq, OpenAI, Claude, Gemini, or any custom OpenAI-compatible API.
+<!--
+  TIP: a short GIF beats any screenshot here. Record one (open app → drop a PDF →
+  ask a question → answer appears), save it as docs/demo.gif, and replace the
+  <img> below with:  ![FileWhisper demo](docs/demo.gif)
+  Free recorders: Kap (macOS, getkap.co), ScreenToGif (Windows), Peek (Linux).
+-->
+![FileWhisper](docs/screenshot.png)
 
-## Install (macOS & Linux)
+</div>
 
-For non-technical users — no Git, Node, or Rust required. Open a **Terminal** and paste this single line:
+---
+
+## Why FileWhisper?
+
+- 🔒 **Truly private** — parsing, OCR, embeddings, and vector search all run locally. Only your question and the matched snippets are sent to the LLM, and even that can be a free keyless model.
+- ⚡ **One-line install, no setup** — no Git, Node, Rust, or manual Python. Paste one command, get a double-click app on your Desktop.
+- 🆓 **Works with zero API keys** — ships with a free built-in assistant. Add a Groq/OpenAI/Claude/Gemini key only if you want faster or sharper answers.
+- 🪶 **Lightweight** — a slim ONNX stack (no PyTorch); the whole install incl. OCR is ~435 MB.
+- 📄 **Handles real documents** — `.txt`, `.md`, `.pdf`, and images (`.png/.jpg/.webp/.bmp/.tiff`), with automatic OCR for scanned PDFs and pictures.
+
+## Install
+
+### macOS & Linux
+
+Open a **Terminal** and paste:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ishankanodia/FileWhisper/main/install.sh | bash
 ```
 
-This downloads FileWhisper, builds a small isolated environment (~400 MB, no PyTorch), pre-loads the local AI models, and drops a **FileWhisper** launcher on your Desktop (a `.app` on macOS, a `.desktop` entry on Linux). After that, just **double-click FileWhisper** — it opens in your web browser with no terminal window. You never need Terminal again.
+### Windows 10/11
 
-Everything runs locally. The built-in free assistant means you don't even need an API key; paste one in **LLM Settings** only if you prefer a specific provider.
-
-> The launcher is generated on your own machine, so macOS does not flag it as an "unidentified developer" — it just opens. (On Linux you may need to right-click the Desktop icon → **Allow Launching** the first time.)
-
-## Install (Windows 10/11)
-
-Open **PowerShell** and paste this one line:
+Open **PowerShell** and paste:
 
 ```powershell
 irm https://raw.githubusercontent.com/ishankanodia/FileWhisper/main/install.ps1 | iex
 ```
 
-It installs Python if needed (via winget), sets up the same small isolated environment, and puts **FileWhisper** and **Stop FileWhisper** shortcuts (with the logo) on your Desktop. Double-click **FileWhisper** to start — it opens in your browser with **no console window** — and **Stop FileWhisper** to stop it.
+The installer downloads FileWhisper, builds a small isolated environment (~435 MB, no PyTorch), pre-loads the local AI models, and drops a single **FileWhisper** launcher on your Desktop. After that, just **double-click FileWhisper** — it opens in your browser with **no terminal/console window**. To stop it, click **⏻ Quit FileWhisper** inside the app.
 
-### For Developers
+> The launcher is generated on your own machine, so macOS doesn't flag it as an "unidentified developer" — it just opens. (On Linux you may need to right-click the Desktop icon → **Allow Launching** the first time.)
 
-Developers can clone the repo and run the app locally from Terminal.
+**To update:** re-run the same one-line command. It rebuilds from the latest version; your indexed data is preserved.
 
-```bash
-git clone https://github.com/ishankanodia/FileWhisper.git
-cd FileWhisper
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-python -m filewhisper.server_launcher
+## How it works
+
+```
+your files ─► parse + OCR ─► chunk ─► ONNX MiniLM embeddings ─► FAISS index
+                                                                    │
+              answer ◄── LLM (free or your key) ◄── retrieve top matches ◄┘
 ```
 
-Open:
+A LangGraph pipeline retrieves the most relevant chunks, asks the LLM to answer **only** from those chunks, and suggests a follow-up question. Everything except the final LLM call is local; the index lives in `~/.filewhisper/rag_data`.
 
-```text
-http://localhost:8001
-```
+## Bring your own model (optional)
 
-Developers can either edit `.env` or paste an API key in `LLM Settings`.
+Out of the box, FileWhisper uses a free keyless assistant. To use your own provider, open **LLM Settings** in the app (or set environment variables for dev), choosing from:
 
-OCR for images and scanned PDFs is built in (ONNX, no system Tesseract required).
-
-## LLM Configuration
-
-The app supports these providers:
-
-- Groq
-- OpenAI
-- Anthropic Claude
-- Google Gemini
-- Custom OpenAI-compatible APIs
-
-Environment examples:
+| Provider | Example model |
+|---|---|
+| Groq | `llama-3.3-70b-versatile` |
+| OpenAI | `gpt-5-mini` |
+| Anthropic Claude | `claude-sonnet-4-6` |
+| Google Gemini | `gemini-2.5-flash` |
+| Custom (OpenAI-compatible) | any `LLM_BASE_URL` |
 
 ```bash
 LLM_PROVIDER=groq
@@ -81,59 +78,54 @@ LLM_MODEL=llama-3.3-70b-versatile
 GROQ_API_KEY=your_key
 ```
 
-```bash
-LLM_PROVIDER=openai
-LLM_MODEL=gpt-5-mini
-OPENAI_API_KEY=your_key
-```
+## Run from source (developers)
 
 ```bash
-LLM_PROVIDER=anthropic
-LLM_MODEL=claude-sonnet-4-6
-ANTHROPIC_API_KEY=your_key
+git clone https://github.com/ishankanodia/FileWhisper.git
+cd FileWhisper
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+python -m filewhisper.server_launcher   # opens http://localhost:8001
 ```
 
-```bash
-LLM_PROVIDER=gemini
-LLM_MODEL=gemini-2.5-flash
-GEMINI_API_KEY=your_key
-```
+OCR for images and scanned PDFs is built in (ONNX — no system Tesseract required).
 
-```bash
-LLM_PROVIDER=custom
-LLM_MODEL=your_model
-LLM_BASE_URL=https://your-provider.example/v1
-LLM_API_KEY=your_key
-```
-
-## Project Structure
+## Project structure
 
 ```text
-install.sh                      One-line macOS installer (recommended)
-filewhisper/main.py             FastAPI app and LLM routing
+install.sh / install.ps1        One-line installers (macOS/Linux, Windows)
+filewhisper/main.py             FastAPI app, endpoints, LLM routing
 filewhisper/rag.py              Ingestion, chunking, ONNX embeddings, FAISS search
-filewhisper/server_launcher.py  Local backend launcher (opens the browser)
-filewhisper/static/index.html   Main UI
-Dockerfile                      Optional container image for self-hosting
+filewhisper/server_launcher.py  Local launcher (free port, opens browser)
+filewhisper/static/index.html   The UI (file browser + chat)
+docs/                           Website (GitHub Pages) + screenshot
 ```
 
-## Security Notes
+## Privacy & analytics
 
-- Do not commit `.env`.
-- Do not commit `rag_data/`; it can contain private document text and local file paths.
-- A hosted web app cannot browse a user's local folders. Hosted mode should use file uploads instead.
-- Do not expose one shared API key publicly without auth, rate limits, and abuse controls.
+Your documents and questions never leave your machine except for the final LLM call (which you control — use the free local provider for zero external calls).
+
+The **installer** sends a single anonymous ping on install (operating system + version only — no personal data, no file info, no identifiers) so we can gauge how many people use FileWhisper. To opt out, set either environment variable before installing:
+
+```bash
+DO_NOT_TRACK=1 curl -fsSL https://raw.githubusercontent.com/ishankanodia/FileWhisper/main/install.sh | bash
+```
+
+```powershell
+$env:DO_NOT_TRACK=1; irm https://raw.githubusercontent.com/ishankanodia/FileWhisper/main/install.ps1 | iex
+```
+
+(`FILEWHISPER_NO_ANALYTICS=1` works too.)
+
+## Security notes
+
+- Don't commit `.env` or `rag_data/` (it can contain private document text and local file paths).
+- A hosted web app cannot browse a user's local folders — for hosted mode, use file uploads instead and never expose `/browse` publicly.
 - Revoke any API key that was ever committed to git history.
 
-## Hosted Web Version
+---
 
-This project is currently optimized for local desktop use.
-
-If you want a hosted web version, replace local folder browsing with file upload:
-
-1. User opens website.
-2. User uploads documents.
-3. Server indexes uploaded files.
-4. User asks questions.
-
-Do not expose `/browse` on a public hosted server.
+<div align="center">
+Made for people who want to ask their own files questions — without handing them to the cloud.
+</div>

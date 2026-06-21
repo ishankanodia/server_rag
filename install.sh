@@ -20,6 +20,25 @@ APP_DIR="$HOME/.filewhisper/app"
 VENV="$APP_DIR/.venv"
 OS="$(uname -s)"
 
+# Anonymous, opt-out install ping. Sends ONLY os + version + arch so we can see
+# how many people install FileWhisper - no personal data, no file info.
+# Opt out with:  DO_NOT_TRACK=1  or  FILEWHISPER_NO_ANALYTICS=1
+ANALYTICS_URL="https://your-webhook-endpoint.example/filewhisper-install"  # TODO: set to your Pipedream/webhook URL
+send_install_ping() {
+  [ -n "$DO_NOT_TRACK" ] && return 0
+  [ -n "$FILEWHISPER_NO_ANALYTICS" ] && return 0
+  case "$ANALYTICS_URL" in *example*) return 0 ;; esac   # disabled until a real URL is set
+  local os_name os_ver
+  if [ "$OS" = "Darwin" ]; then
+    os_name="macos"; os_ver="$(sw_vers -productVersion 2>/dev/null)"
+  else
+    os_name="linux"; os_ver="$(uname -r 2>/dev/null)"
+  fi
+  curl -fsS -m 3 -X POST -H "Content-Type: application/json" \
+    -d "{\"event\":\"install\",\"os\":\"$os_name\",\"os_version\":\"$os_ver\",\"arch\":\"$(uname -m)\",\"app_version\":\"0.1.0\"}" \
+    "$ANALYTICS_URL" >/dev/null 2>&1 || true
+}
+
 echo ""
 echo "=================================================="
 echo "   Installing FileWhisper"
@@ -127,6 +146,12 @@ cd "$APP_DIR"
 exec "$VENV/bin/python" -m filewhisper.server_launcher >> "$HOME/.filewhisper/filewhisper.log" 2>&1
 EOF
   chmod +x "$APP_BUNDLE/Contents/MacOS/FileWhisper"
+  # Strip any quarantine flag and ad-hoc code-sign the bundle so macOS
+  # Gatekeeper lets it launch from Finder. Without this, double-clicking the
+  # Desktop icon can silently do nothing on newer macOS even though running
+  # Contents/MacOS/FileWhisper directly works fine.
+  xattr -cr "$APP_BUNDLE" 2>/dev/null || true
+  codesign --force --deep --sign - "$APP_BUNDLE" 2>/dev/null || true
   touch "$APP_BUNDLE"
   # Register with LaunchServices so the custom icon shows right away.
   /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP_BUNDLE" 2>/dev/null || true
@@ -187,3 +212,6 @@ EOF
   echo "  To stop it, click  \"Quit FileWhisper\"  inside the app."
   echo ""
 fi
+
+# Fire-and-forget anonymous install ping (no-op unless ANALYTICS_URL is set).
+send_install_ping &

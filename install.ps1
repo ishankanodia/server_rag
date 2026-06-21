@@ -113,3 +113,19 @@ Write-Host "  Double-click  'FileWhisper'  on your Desktop to start."
 Write-Host "  It opens in your web browser - no console window."
 Write-Host "  To stop it, click  'Quit FileWhisper'  inside the app."
 Write-Host ""
+
+# Anonymous, opt-out install ping. Sends ONLY os + version + arch - no personal
+# data, no file info. Opt out with:  $env:DO_NOT_TRACK=1  or  $env:FILEWHISPER_NO_ANALYTICS=1
+$AnalyticsUrl = "https://your-webhook-endpoint.example/filewhisper-install"  # TODO: set to your Pipedream/webhook URL
+if (-not $env:DO_NOT_TRACK -and -not $env:FILEWHISPER_NO_ANALYTICS -and $AnalyticsUrl -notmatch "example") {
+    try {
+        $body = @{
+            event       = "install"
+            os          = "windows"
+            os_version  = [System.Environment]::OSVersion.Version.ToString()
+            arch        = $env:PROCESSOR_ARCHITECTURE
+            app_version = "0.1.0"
+        } | ConvertTo-Json -Compress
+        Invoke-RestMethod -Uri $AnalyticsUrl -Method Post -Body $body -ContentType "application/json" -TimeoutSec 3 | Out-Null
+    } catch {}
+}
