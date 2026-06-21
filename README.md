@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🔍 FileWhisper
+# FileWhisper
 
 ### Chat with your files. 100% local. One-line install.
 
@@ -20,11 +20,11 @@ FileWhisper indexes documents on your computer and answers questions about them 
 
 ## Why FileWhisper?
 
-- 🔒 **Truly private** — parsing, OCR, embeddings, and vector search all run locally. Only your question and the matched snippets are sent to the LLM, and even that can be a free keyless model.
-- ⚡ **One-line install, no setup** — no Git, Node, Rust, or manual Python. Paste one command, get a double-click app on your Desktop.
-- 🆓 **Works with zero API keys** — ships with a free built-in assistant. Add a Groq/OpenAI/Claude/Gemini key only if you want faster or sharper answers.
-- 🪶 **Lightweight** — a slim ONNX stack (no PyTorch); the whole install incl. OCR is ~435 MB.
-- 📄 **Handles real documents** — `.txt`, `.md`, `.pdf`, and images (`.png/.jpg/.webp/.bmp/.tiff`), with automatic OCR for scanned PDFs and pictures.
+- **Truly private** — parsing, OCR, embeddings, and vector search all run locally. Only your question and the matched snippets are sent to the LLM, and even that can be a free keyless model.
+- **One-line install, no setup** — no Git, Node, Rust, or manual Python. Paste one command, get a double-click app on your Desktop.
+- **Works with zero API keys** — ships with a free built-in assistant. Add a Groq/OpenAI/Claude/Gemini key only if you want faster or sharper answers.
+- **Lightweight** — a slim ONNX stack (no PyTorch); the whole install incl. OCR is ~435 MB.
+- **Handles real documents** — `.txt`, `.md`, `.pdf`, and images (`.png/.jpg/.webp/.bmp/.tiff`), with automatic OCR for scanned PDFs and pictures.
 
 ## Install
 
@@ -44,7 +44,7 @@ Open **PowerShell** and paste:
 irm https://raw.githubusercontent.com/ishankanodia/FileWhisper/main/install.ps1 | iex
 ```
 
-The installer downloads FileWhisper, builds a small isolated environment (~435 MB, no PyTorch), pre-loads the local AI models, and drops a single **FileWhisper** launcher on your Desktop. After that, just **double-click FileWhisper** — it opens in your browser with **no terminal/console window**. To stop it, click **⏻ Quit FileWhisper** inside the app.
+The installer downloads FileWhisper, builds a small isolated environment (~435 MB, no PyTorch), pre-loads the local AI models, and drops a single **FileWhisper** launcher on your Desktop. After that, just **double-click FileWhisper** — it opens in your browser with **no terminal/console window**. To stop it, click **Quit FileWhisper** inside the app.
 
 > The launcher is generated on your own machine, so macOS doesn't flag it as an "unidentified developer" — it just opens. (On Linux you may need to right-click the Desktop icon → **Allow Launching** the first time.)
 
