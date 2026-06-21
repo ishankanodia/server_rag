@@ -11,6 +11,7 @@ import os
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import TypedDict, Optional
@@ -57,7 +58,7 @@ class LLMConfigRequest(BaseModel):
 PROVIDER_DEFAULTS = {
     "free-huggingface": {
         "model": "mistralai/Mistral-7B-Instruct-v0.3",
-        "base_url": "https://router.huggingface.co/hf-inference/models",
+        "base_url": "https://router.huggingface.co/v1",
         "api_key_env": "HF_API_KEY",
         "api_style": "huggingface",
     },
@@ -316,93 +317,96 @@ def _call_gemini(cfg: dict, prompt: str, max_tokens: int) -> str:
     return "".join(part.get("text", "") for part in parts).strip()
 
 
+def _call_pollinations(prompt: str) -> str:
+    """Keyless free assistant via Pollinations AI. Tries POST, then a GET
+    fallback (different Cloudflare path) so a 403/1010 block on one doesn't
+    sink the whole request. Generous timeout for cold starts."""
+    ua = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+          "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+    payload = {"messages": [{"role": "user", "content": prompt}], "model": "openai", "jsonMode": False}
+    headers = {"Content-Type": "application/json", "User-Agent": ua, "Accept": "*/*"}
+
+    last_err = None
+    for _attempt in range(2):
+        try:
+            req = urllib.request.Request(
+                "https://text.pollinations.ai/",
+                data=json.dumps(payload).encode("utf-8"),
+                headers=headers, method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=60) as response:
+                text = response.read().decode("utf-8").strip()
+                if text:
+                    return text
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                raise RuntimeError(
+                    "Free Assistant rate limit reached. Please try again in a few seconds, "
+                    "or add your own API key in LLM Settings for higher limits."
+                )
+            last_err = e  # e.g. 403/1010 Cloudflare block — try the GET fallback
+        except Exception as e:
+            last_err = e
+
+    try:
+        url = "https://text.pollinations.ai/" + urllib.parse.quote(prompt[:1800])
+        req = urllib.request.Request(url, headers={"User-Agent": ua, "Accept": "*/*"})
+        with urllib.request.urlopen(req, timeout=60) as response:
+            text = response.read().decode("utf-8").strip()
+            if text:
+                return text
+    except Exception as e:
+        last_err = e
+
+    raise RuntimeError(
+        f"Free Assistant API error: {last_err}. Please check your internet connection "
+        "or add an API key in LLM Settings."
+    )
+
+
 def _call_free_huggingface(cfg: dict, prompt: str, max_tokens: int) -> str:
     api_key = cfg.get("api_key")
-    
-    if api_key:
-        # User has provided an API key, use Hugging Face Serverless Inference
-        model = cfg["model"] or "mistralai/Mistral-7B-Instruct-v0.3"
-        api_url = f"https://router.huggingface.co/hf-inference/models/{model}"
-        
-        system_instr = "Answer ONLY using provided context. Be structured and clear."
-        full_prompt = f"<s>[INST] {system_instr}\n\n{prompt} [/INST]"
-        
-        data = {
-            "inputs": full_prompt,
-            "parameters": {
-                "max_new_tokens": max_tokens,
-                "temperature": 0.5,
-                "return_full_text": False
-            }
-        }
-        
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}"
-        }
-        
+
+    # Keyless mode: use the free Pollinations assistant.
+    if not api_key:
+        return _call_pollinations(prompt)
+
+    # With a key: use the Hugging Face router's OpenAI-compatible chat
+    # completions endpoint. It auto-selects an available inference provider for
+    # the model, unlike the old /hf-inference/models endpoint which 400s with
+    # "Model not supported by provider hf-inference". Tolerate older saved
+    # configs that still point base_url at the legacy models endpoint.
+    base = (cfg.get("base_url") or "https://router.huggingface.co/v1").rstrip("/")
+    if not base.endswith("/v1"):
+        base = "https://router.huggingface.co/v1"
+    api_url = f"{base}/chat/completions"
+    payload = {
+        "model": cfg["model"] or "mistralai/Mistral-7B-Instruct-v0.3",
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": max_tokens,
+        "temperature": 0.5,
+    }
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+
+    try:
         req = urllib.request.Request(
-            api_url,
-            data=json.dumps(data).encode("utf-8"),
-            headers=headers,
-            method="POST"
+            api_url, data=json.dumps(payload).encode("utf-8"),
+            headers=headers, method="POST",
         )
-        
+        with urllib.request.urlopen(req, timeout=30) as response:
+            res = json.loads(response.read().decode("utf-8"))
+            return res["choices"][0]["message"]["content"].strip()
+    except Exception as e:
+        # If the chosen model/provider is unavailable, fall back to the keyless
+        # free assistant so the app still answers.
         try:
-            with urllib.request.urlopen(req, timeout=20) as response:
-                res_data = json.loads(response.read().decode("utf-8"))
-                if isinstance(res_data, list) and len(res_data) > 0:
-                    return res_data[0].get("generated_text", "").strip()
-                elif isinstance(res_data, dict):
-                    return res_data.get("generated_text", "").strip()
-        except urllib.error.HTTPError as e:
+            return _call_pollinations(prompt)
+        except Exception:
+            pass
+        if isinstance(e, urllib.error.HTTPError):
             detail = e.read().decode("utf-8", errors="ignore")
             raise RuntimeError(f"Hugging Face API error ({e.code}): {detail[:300]}")
-        except Exception as e:
-            raise RuntimeError(f"Hugging Face API error: {e}")
-            
-    else:
-        # Keyless mode: use Pollinations AI as a free fallback.
-        # It can be slow on a cold start, so use a generous timeout and retry
-        # once on a transient timeout/connection error before giving up.
-        api_url = "https://text.pollinations.ai/"
-        payload = {
-            "messages": [{"role": "user", "content": prompt}],
-            "model": "openai",
-            "jsonMode": False
-        }
-
-        headers = {
-            "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
-
-        last_err = None
-        for _attempt in range(2):
-            req = urllib.request.Request(
-                api_url,
-                data=json.dumps(payload).encode("utf-8"),
-                headers=headers,
-                method="POST"
-            )
-            try:
-                with urllib.request.urlopen(req, timeout=60) as response:
-                    return response.read().decode("utf-8").strip()
-            except urllib.error.HTTPError as e:
-                if e.code == 429:
-                    raise RuntimeError(
-                        "Free Assistant rate limit reached. Please try again in a few seconds, "
-                        "or add your own API key in LLM Settings for higher limits."
-                    )
-                detail = e.read().decode("utf-8", errors="ignore")
-                raise RuntimeError(f"Free Assistant API error ({e.code}): {detail[:300]}")
-            except Exception as e:
-                last_err = e  # transient (timeout/connection) — retry once
-
-        raise RuntimeError(
-            f"Free Assistant API error: {last_err}. Please check your internet connection "
-            "or add an API key in LLM Settings."
-        )
+        raise RuntimeError(f"Hugging Face API error: {e}")
 
 
 def call_llm(prompt: str, max_tokens=400):
