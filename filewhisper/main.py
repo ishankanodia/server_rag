@@ -243,11 +243,18 @@ def clean_text(text: str) -> str:
     return text.strip()
 
 
+# Providers (Groq, OpenAI, etc.) sit behind Cloudflare, which blocks urllib's
+# default "Python-urllib/3.x" User-Agent as a bot signature (403, error 1010).
+# A browser-like UA avoids that; every outbound LLM request should send one.
+DEFAULT_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+              "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+
+
 def _post_json(url: str, payload: dict, headers: dict, timeout: int = 60) -> dict:
     request = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={**headers, "Content-Type": "application/json"},
+        headers={"User-Agent": DEFAULT_UA, **headers, "Content-Type": "application/json"},
         method="POST",
     )
     try:
@@ -337,10 +344,8 @@ def _call_pollinations(prompt: str) -> str:
     """Keyless free assistant via Pollinations AI. Tries POST, then a GET
     fallback (different Cloudflare path) so a 403/1010 block on one doesn't
     sink the whole request. Generous timeout for cold starts."""
-    ua = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-          "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
     payload = {"messages": [{"role": "user", "content": prompt}], "model": "openai", "jsonMode": False}
-    headers = {"Content-Type": "application/json", "User-Agent": ua, "Accept": "*/*"}
+    headers = {"Content-Type": "application/json", "User-Agent": DEFAULT_UA, "Accept": "*/*"}
 
     last_err = None
     for _attempt in range(2):
@@ -382,7 +387,7 @@ def _call_pollinations(prompt: str) -> str:
         if len(prompt) > MAX_GET:
             prompt = prompt[:2000] + "\n...\n" + prompt[-(MAX_GET - 2000):]
         url = "https://text.pollinations.ai/" + urllib.parse.quote(prompt)
-        req = urllib.request.Request(url, headers={"User-Agent": ua, "Accept": "*/*"})
+        req = urllib.request.Request(url, headers={"User-Agent": DEFAULT_UA, "Accept": "*/*"})
         with urllib.request.urlopen(req, timeout=60) as response:
             text = response.read().decode("utf-8").strip()
             if text:
@@ -418,7 +423,7 @@ def _call_free_huggingface(cfg: dict, prompt: str, max_tokens: int) -> str:
         "max_tokens": max_tokens,
         "temperature": 0.5,
     }
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}", "User-Agent": DEFAULT_UA}
 
     try:
         req = urllib.request.Request(
