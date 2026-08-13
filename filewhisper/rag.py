@@ -215,6 +215,9 @@ def extract_text_from_file(filepath: str) -> str:
 
 
 def add_chunks(chunks: list, source_path: str):
+    """Embed and index chunks in memory. Caller is responsible for persisting
+    (see ingest_path) so a multi-file ingest doesn't re-save the whole growing
+    index/pickle after every single file."""
     global index, documents, doc_sources, sources
 
     if not chunks:
@@ -234,7 +237,6 @@ def add_chunks(chunks: list, source_path: str):
         if source_path not in sources:
             sources.append(source_path)
 
-        _save()
     return len(chunks)
 
 
@@ -260,17 +262,28 @@ def ingest_path(path: str) -> dict:
 
     indexed = {_norm(s) for s in sources}
 
-    for filepath in files:
-        if _norm(filepath) in indexed:
-            results.append({"file": filepath, "status": "skipped", "chunks": 0, "reason": "already indexed"})
-            continue
-        text = extract_text_from_file(filepath)
-        if not text.strip():
-            results.append({"file": filepath, "status": "skipped", "chunks": 0})
-            continue
-        chunks = split_text(text)
-        n = add_chunks(chunks, filepath)
-        results.append({"file": filepath, "status": "indexed", "chunks": n})
+    added_any = False
+    try:
+        for filepath in files:
+            if _norm(filepath) in indexed:
+                results.append({"file": filepath, "status": "skipped", "chunks": 0, "reason": "already indexed"})
+                continue
+            text = extract_text_from_file(filepath)
+            if not text.strip():
+                results.append({"file": filepath, "status": "skipped", "chunks": 0})
+                continue
+            chunks = split_text(text)
+            n = add_chunks(chunks, filepath)
+            if n:
+                added_any = True
+            results.append({"file": filepath, "status": "indexed", "chunks": n})
+    finally:
+        # Persist once for the whole batch rather than after every file: with
+        # per-file saving, each save re-pickles the entire (growing) documents
+        # list and rewrites the whole FAISS index, making a folder ingest O(n^2).
+        if added_any:
+            with _lock:
+                _save()
 
     return {
         "status": "done",
